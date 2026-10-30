@@ -442,7 +442,7 @@ export class World {
         .setFriction(md.friction)
         .setRestitution(md.restitution)
         .setDensity(2)
-        .setCollisionGroups(groups(G_STATIC, G_ITEM))
+        .setCollisionGroups(pinned ? groups(G_STATIC, G_ITEM) : groups(G_ITEM, G_ITEM | G_WINDOW | G_STATIC))
       if ((p.mat ?? mat) === 'rubber') d.setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Max)
       if ((p.mat ?? mat) === 'ice') d.setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
       colliders.push(this.own(this.w.createCollider(d, b), { t: 'struct', id, mat: p.mat ?? mat }))
@@ -499,9 +499,48 @@ export class World {
     return best
   }
 
-  structure(id: number): { kind: StructureKind; x: number; y: number; a: number; s: number } | null {
+  structure(id: number): { kind: StructureKind; x: number; y: number; a: number; s: number; pinned: boolean } | null {
     const st = this.structs.get(id)
-    return st ? { kind: st.kind, x: st.x, y: st.y, a: st.a, s: st.s } : null
+    return st ? { kind: st.kind, x: st.x, y: st.y, a: st.a, s: st.s, pinned: st.pinned } : null
+  }
+
+  /** 📌 고정 풀기/하기: 풀면 구조물도 떨어지고 밀린다 */
+  setPinned(id: number, pinned: boolean): void {
+    const st = this.structs.get(id)
+    if (!st || st.pinned === pinned) return
+    this.removeStructure(id)
+    this.addStructure(st.kind, st.x, st.y, st.a, st.s, pinned, id)
+  }
+
+  get structCount(): number {
+    return this.structs.size
+  }
+
+  /** 코스로 저장할 것 (웜홀·구조물·그린 선) */
+  scene(): { portals: Portal[]; structs: { kind: StructureKind; x: number; y: number; a: number; s: number; pinned: boolean }[]; strokes: { mat: Material; pts: number[] }[] } {
+    const portals: Portal[] = []
+    // 짝끼리 붙여서 (불러올 때 차례대로 짝지어지게)
+    const done = new Set<number>()
+    for (const p of this.portals.values()) {
+      if (done.has(p.id) || p.pair === null) continue
+      const q = this.portals.get(p.pair)
+      if (!q) continue
+      portals.push({ ...p }, { ...q })
+      done.add(p.id).add(q.id)
+    }
+    return {
+      portals,
+      structs: [...this.structs.values()].map((st) => ({ kind: st.kind, x: st.x, y: st.y, a: st.a, s: st.s, pinned: st.pinned })),
+      strokes: [...this.strokes.values()].map((st) => ({ mat: st.mat, pts: st.pts }))
+    }
+  }
+
+  clearScene(): void {
+    this.clearItems()
+    for (const id of [...this.structs.keys()]) this.removeStructure(id)
+    for (const id of [...this.strokes.keys()]) this.removeStroke(id)
+    this.portals.clear()
+    this.attempts = 0
   }
 
   // ───────── 그린 선 ─────────
@@ -958,6 +997,13 @@ export class World {
       } else it.outside = 0
     }
     for (const id of dead) this.removeItem(id)
+    for (const st of this.structs.values()) {
+      if (st.pinned) continue
+      const t = st.body.translation()
+      st.x = px(t.x)
+      st.y = px(t.y)
+      st.a = st.body.rotation()
+    }
     this.settleWindows()
     void now
   }
@@ -1145,7 +1191,7 @@ export class World {
         if (!(vly > 50 && prevLy < goal.y)) continue
       }
       it.scored.add(st.id)
-      this.fx.push({ t: 'goal', x: st.x, y: st.y, k: st.kind, bounces: it.bounces, portals: it.portals, attempts: Math.max(1, this.attempts), item: it.kind })
+      this.fx.push({ t: 'goal', x: st.x, y: st.y, k: st.kind, bounces: it.bounces, portals: it.portals, attempts: Math.max(1, this.attempts), item: it.kind, id: it.id })
       this.attempts = 0
     }
   }

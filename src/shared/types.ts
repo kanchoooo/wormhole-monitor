@@ -41,7 +41,7 @@ export type Fx =
   | { t: 'bell'; x: number; y: number }
   | { t: 'splat'; x: number; y: number }
   | { t: 'boom'; x: number; y: number }
-  | { t: 'goal'; x: number; y: number; k: StructureKind; bounces: number; portals: number; attempts: number; item: ItemKind }
+  | { t: 'goal'; x: number; y: number; k: StructureKind; bounces: number; portals: number; attempts: number; item: ItemKind; id: number }
   | { t: 'cursor-warp'; x: number; y: number; c: number }
 
 export interface StructView {
@@ -154,6 +154,10 @@ export interface ToolboxState {
   sel: { t: 'struct' | 'portal'; id: number; pinned?: boolean; s?: number } | null
   canRelaunch: boolean
   version: string
+  /** 잠깐 보여 줄 알림 */
+  toast: { text: string; at: number } | null
+  /** 지금 깔린 도전 코스 */
+  challenge: string | null
 }
 
 export type ToolboxAction =
@@ -168,6 +172,9 @@ export type ToolboxAction =
   | { t: 'sel-pin' }
   | { t: 'sel-delete' }
   | { t: 'open-accessibility' }
+  | { t: 'course-copy' }
+  | { t: 'course-paste' }
+  | { t: 'course-load'; id: string }
   | { t: 'hide' }
   | { t: 'quit' }
 

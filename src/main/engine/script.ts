@@ -5,6 +5,8 @@ import { writeFileSync } from 'fs'
 import { join } from 'path'
 import type { ItemKind, Material, StructureKind } from '@shared/defs'
 import type { Tool } from '@shared/types'
+import { CHALLENGES } from '@shared/courses'
+import { importCourse } from '../courses'
 import type { WinRect } from '../windows'
 import type { Engine } from './index'
 
@@ -23,6 +25,8 @@ export interface Step {
   struct?: { kind: StructureKind; x: number; y: number; a?: number; s?: number }
   stroke?: { mat: Material; pts: number[] }
   windows?: WinRect[]
+  /** 도전 코스 깔기 */
+  challenge?: string
   shot?: string
   log?: string
   quit?: boolean
@@ -35,6 +39,10 @@ export function runScript(steps: Step[], engine: Engine, shotDir: string, captur
   for (const s of steps) {
     setTimeout(async () => {
       if (s.windows) engine.fakeWindows = s.windows
+      if (s.challenge) {
+        const ch = CHALLENGES.find((c) => c.id === s.challenge)
+        if (ch) importCourse(engine.world, ch.course, { x: 0, y: 25, w: 1440, h: 815 })
+      }
       if (s.tool) engine.setTool(s.tool)
       if (s.move) Object.assign(f, { x: s.move[0], y: s.move[1] })
       if (s.down) Object.assign(f, { x: s.down[0], y: s.down[1], left: true })

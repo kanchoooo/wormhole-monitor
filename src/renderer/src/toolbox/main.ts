@@ -1,4 +1,5 @@
 // 공구함: 도구 고르기·설정·정리. 상태는 메인이 갖고 있고 여기는 보여 주기만 한다.
+import { CHALLENGES } from '@shared/courses'
 import { DRAW_MATERIALS, ITEM_KINDS, ITEMS, MATERIALS, STRUCTURE_KINDS, STRUCTURES } from '@shared/defs'
 import type { Tool, ToolboxAction, ToolboxState } from '@shared/types'
 import { iconFor, materialSwatch, portalSprite, type Sprite } from '@/art/dots'
@@ -63,6 +64,12 @@ function render(): void {
   head.append(close)
   app.append(head)
 
+  if (s.toast && Date.now() - s.toast.at < 5000) {
+    const t = el('div', 'toast', s.toast.text)
+    app.append(t)
+    setTimeout(render, 5100 - (Date.now() - s.toast.at))
+  }
+
   // 권한 안내
   if (!s.canMove && s.settings.pushWindows) {
     const warn = el('div', 'warn')
@@ -123,7 +130,10 @@ function render(): void {
       small.onclick = () => act({ t: 'sel-scale', dir: -1 })
       const big = el('button', 'small', '크게')
       big.onclick = () => act({ t: 'sel-scale', dir: 1 })
-      g.append(small, big)
+      const pin = el('button', 'small' + (s.sel.pinned === false ? ' on' : ''), s.sel.pinned === false ? '📌 고정하기' : '📌 고정 풀기')
+      pin.title = '고정을 풀면 구조물도 떨어지고 밀려요'
+      pin.onclick = () => act({ t: 'sel-pin' })
+      g.append(small, big, pin)
     }
     const del = el('button', 'small danger', s.sel.t === 'portal' ? '쌍 지우기' : '지우기')
     del.onclick = () => act({ t: 'sel-delete' })
@@ -131,6 +141,28 @@ function render(): void {
     sel.append(g)
     app.append(sel)
   }
+
+  // 코스
+  const co = section('코스', '· 도전하거나 내 코스를 공유')
+  const cg = el('div', 'grid g2')
+  for (const ch of CHALLENGES) {
+    const b = el('button', 'small chal' + (s.challenge === ch.id ? ' on' : ''), ch.name)
+    b.title = ch.hint
+    b.onclick = () => act({ t: 'course-load', id: ch.id })
+    cg.append(b)
+  }
+  co.append(cg)
+  const share = el('div', 'actions')
+  share.style.marginTop = '4px'
+  const copy = el('button', 'small', '📋 내 코스 복사')
+  copy.title = '지금 놓은 웜홀·구조물·선을 코드로 복사 (장난감·창은 빼고)'
+  copy.onclick = () => act({ t: 'course-copy' })
+  const paste = el('button', 'small', '📥 코드 붙여넣기')
+  paste.title = '친구가 보낸 WH1.… 코드를 복사한 뒤 누르세요'
+  paste.onclick = () => act({ t: 'course-paste' })
+  share.append(copy, paste)
+  co.append(share)
+  app.append(co)
 
   // 동작
   const ac = section('정리')

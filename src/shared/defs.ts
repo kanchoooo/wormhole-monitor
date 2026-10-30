@@ -97,7 +97,7 @@ function pegs(): Part[] {
   const out: Part[] = []
   for (let row = 0; row < 4; row++) {
     const cols = row % 2 ? 4 : 5
-    for (let c = 0; c < cols; c++) out.push({ t: 'ball', x: (c - (cols - 1) / 2) * 30, y: (row - 1.5) * 26, r: 3, mat: 'metal' })
+    for (let c = 0; c < cols; c++) out.push({ t: 'ball', x: (c - (cols - 1) / 2) * 30, y: (row - 1.5) * 26, r: 4, mat: 'metal' })
   }
   return out
 }

@@ -1,4 +1,6 @@
 // 물리 세계 단위 확인 (Electron 없이): node test/run.mjs
+import { CHALLENGES } from '../src/shared/courses'
+import { decodeCourse, encodeCourse, exportCourse, importCourse } from '../src/main/courses'
 import { initPhysics, World } from '../src/main/engine/world'
 
 async function main(): Promise<void> {
@@ -72,6 +74,30 @@ async function main(): Promise<void> {
     for (let i = 0; i < 60; i++) w.step(0)
     const f = w.frame()
     ok('화살이 창에 박힘', (f.items[5] & 1) === 1, `깃발 ${f.items[5]} 위치 ${f.items[2].toFixed(0)},${f.items[3].toFixed(0)} 창 x ${w.windowRects()[0].x.toFixed(0)}`)
+  }
+
+  // 5) 코스 코드 주고받기
+  {
+    const work = { x: 0, y: 25, w: 1440, h: 815 }
+    let allOk = true
+    let longest = 0
+    for (const ch of CHALLENGES) {
+      const w = new World()
+      w.setDisplays([screen])
+      importCourse(w, ch.course, work)
+      const code = encodeCourse(exportCourse(w, work))
+      longest = Math.max(longest, code.length)
+      const back = decodeCourse(`친구가 보낸 코드 ${code} 끝`)
+      const w2 = new World()
+      w2.setDisplays([screen])
+      if (back) importCourse(w2, back, work)
+      const a = w.scene()
+      const b = w2.scene()
+      const same = !!back && a.portals.length === b.portals.length && a.structs.length === b.structs.length && a.strokes.length === b.strokes.length && a.portals.every((p, i) => Math.abs(p.x - b.portals[i].x) < 1 && (p.pair === null) === (b.portals[i].pair === null))
+      if (!same) allOk = false
+    }
+    ok('도전 코스 8개 코드로 주고받기', allOk, `가장 긴 코드 ${longest}자`)
+    ok('엉터리 코드는 거절', decodeCourse('WH1.abc') === null && decodeCourse('hello') === null)
   }
 
   for (const [name, pass, info] of results) console.log(`${pass ? '✓' : '✗'} ${name}${info ? ` — ${info}` : ''}`)

@@ -1,7 +1,9 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, screen, shell, systemPreferences, Tray } from 'electron'
+import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, Menu, screen, shell, systemPreferences, Tray } from 'electron'
 import { mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { Tool, ToolboxAction, ToolboxState } from '@shared/types'
+import { CHALLENGES } from '@shared/courses'
+import type { Rect, Tool, ToolboxAction, ToolboxState } from '@shared/types'
+import { decodeCourse, encodeCourse, exportCourse, importCourse } from './courses'
 import { Engine } from './engine'
 import { initPhysics } from './engine/world'
 import { runScript, type Step } from './engine/script'
@@ -26,6 +28,8 @@ let engine: Engine
 let store: Store
 let quitting = false
 let toolKeys = false
+let toast: ToolboxState['toast'] = null
+let challenge: string | null = null
 const startHidden = process.argv.includes('--hidden') || (process.platform === 'darwin' && app.getLoginItemSettings().wasOpenedAtLogin)
 const TOGGLE_KEY = 'Control+Alt+W'
 
@@ -37,19 +41,31 @@ function toolboxState(): ToolboxState {
   let selView: ToolboxState['sel'] = null
   if (sel?.t === 'struct') {
     const st = w.structure(sel.id)
-    if (st) selView = { t: 'struct', id: sel.id, s: st.s }
+    if (st) selView = { t: 'struct', id: sel.id, s: st.s, pinned: st.pinned }
   } else if (sel?.t === 'portal' && w.portals.has(sel.id)) selView = { t: 'portal', id: sel.id }
-  const f = w.frame()
   return {
     tool: engine.tools.tool,
     settings: store.settings,
     canMove: engine.canMove,
     platform: process.platform,
-    counts: { items: w.itemCount, structs: f.structs.length, strokes: w.strokeViews().length, portals: w.portals.size, moved: w.movedWindows },
+    counts: { items: w.itemCount, structs: w.structCount, strokes: w.strokeViews().length, portals: w.portals.size, moved: w.movedWindows },
     sel: selView,
     canRelaunch: !!engine.tools.lastLaunch,
-    version: app.getVersion()
+    version: app.getVersion(),
+    toast,
+    challenge
   }
+}
+
+function say(text: string): void {
+  toast = { text, at: Date.now() }
+  pushState()
+}
+
+/** 코스 좌표 기준: 커서가 있는 화면의 작업 영역 */
+function workArea(): Rect {
+  const d = headless ? overlays.displays()[0] : screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  return { x: d.workArea.x, y: d.workArea.y, w: d.workArea.width, h: d.workArea.height }
 }
 
 let pushTimer: NodeJS.Timeout | null = null
@@ -147,12 +163,34 @@ function handle(a: ToolboxAction): void {
       break
     case 'clear-all':
       engine.tools.cancel()
-      engine.world.clearItems()
-      for (const p of [...engine.world.portals.keys()]) engine.world.removePortal(p)
-      for (const s of engine.world.frame().structs) engine.world.removeStructure(s.id)
-      for (const s of engine.world.strokeViews()) engine.world.removeStroke(s.id)
+      engine.world.clearScene()
       engine.tools.sel = null
+      challenge = null
       break
+    case 'course-copy': {
+      const c = exportCourse(engine.world, workArea())
+      if (!c.portals.length && !c.structs.length && !c.strokes.length) {
+        say('복사할 코스가 없어요. 웜홀·구조물·선을 먼저 놓아 주세요')
+        break
+      }
+      void clipboard.writeText(`${encodeCourse(c)}\n↑ 웜홀 모니터 코스 코드 — 공구함 › 코스 › 붙여넣기`)
+      say('코스 코드를 복사했어요. 친구에게 보내 보세요!')
+      break
+    }
+    case 'course-paste':
+      void pasteCourse()
+      break
+    case 'course-load': {
+      const ch = CHALLENGES.find((c) => c.id === a.id)
+      if (!ch) break
+      engine.tools.cancel()
+      engine.tools.sel = null
+      importCourse(engine.world, ch.course, workArea())
+      challenge = ch.id
+      if (engine.tools.tool.t === 'none' || engine.tools.tool.t === 'struct' || engine.tools.tool.t === 'draw') setTool({ t: 'item', kind: ch.id === 'hoop' ? 'rubber' : 'marble' })
+      say(`도전: ${ch.name} — ${ch.hint}`)
+      break
+    }
     case 'restore-windows':
       engine.restoreWindows()
       break
@@ -168,8 +206,12 @@ function handle(a: ToolboxAction): void {
     case 'sel-delete':
       engine.tools.deleteSelected()
       break
-    case 'sel-pin':
+    case 'sel-pin': {
+      const sel = engine.tools.sel
+      const st = sel?.t === 'struct' ? engine.world.structure(sel.id) : null
+      if (sel && st) engine.world.setPinned(sel.id, !st.pinned)
       break
+    }
     case 'open-accessibility':
       if (process.platform === 'darwin') {
         // 처음이면 시스템이 묻는 창을 띄우고, 설정 화면도 연다
@@ -187,6 +229,17 @@ function handle(a: ToolboxAction): void {
   }
   engine.wake()
   pushState()
+}
+
+async function pasteCourse(): Promise<void> {
+  const c = decodeCourse(await clipboard.readText())
+  if (!c) return say('클립보드에 코스 코드(WH1.…)가 없어요')
+  engine.tools.cancel()
+  engine.tools.sel = null
+  importCourse(engine.world, c, workArea())
+  challenge = null
+  engine.wake()
+  say('코스를 불러왔어요')
 }
 
 // ───────── 트레이 ─────────
@@ -242,6 +295,8 @@ app.whenReady().then(async () => {
   store = new Store()
   overlays = new Overlays(() => store.settings.dot, headless ? { size: { width: 1440, height: 900 } } : null)
   engine = new Engine(overlays, () => store.settings, headless || env.WH_DEBUG === '1')
+  // 테스트에서는 절대 진짜 창을 건드리지 않는다 (가짜 창만)
+  if (headless) engine.fakeWindows = []
   engine.onChange = () => {
     pushState()
     buildTrayMenu()
