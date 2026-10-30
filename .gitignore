@@ -1,0 +1,11 @@
+node_modules/
+out/
+dist/
+build/koffi/
+.build-*/
+*.log
+.DS_Store
+*.tsbuildinfo
+.claude/
+
+# Codex 이미지 생성 원본은 art-src/ 에 남긴다 (커밋함)
