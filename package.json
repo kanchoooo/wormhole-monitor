@@ -1,6 +1,6 @@
 {
   "name": "wormhole-monitor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "웜홀 모니터 — 바탕화면에 웜홀을 뚫고 구슬·화살·볼링공을 던져 창을 밀어내고 컵에 골인시키는 도트 장난감",
   "main": "./out/main/index.js",
