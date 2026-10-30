@@ -134,7 +134,7 @@ export class Overlays {
   private sendInit(it: Item): void {
     if (!it.ready || it.win.isDestroyed()) return
     const b = it.display.bounds
-    const init: OverlayInit = { bounds: { x: b.x, y: b.y, w: b.width, h: b.height }, dot: this.dot(), debug: env.WH_DEBUG === '1' || !!this.headless }
+    const init: OverlayInit = { bounds: { x: b.x, y: b.y, w: b.width, h: b.height }, dot: this.dot(), debug: env.WH_DEBUG === '1' || !!this.headless, backdrop: !!this.headless }
     it.win.webContents.send('overlay:init', init)
   }
 

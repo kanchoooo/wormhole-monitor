@@ -10,6 +10,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "test": "node test/run.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "icon": "node scripts/make-icon.mjs",
     "dist:mac": "node scripts/build-mac.mjs",

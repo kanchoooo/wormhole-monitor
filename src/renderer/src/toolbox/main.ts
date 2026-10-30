@@ -1,0 +1,201 @@
+// 공구함: 도구 고르기·설정·정리. 상태는 메인이 갖고 있고 여기는 보여 주기만 한다.
+import { DRAW_MATERIALS, ITEM_KINDS, ITEMS, MATERIALS, STRUCTURE_KINDS, STRUCTURES } from '@shared/defs'
+import type { Tool, ToolboxAction, ToolboxState } from '@shared/types'
+import { iconFor, materialSwatch, portalSprite, type Sprite } from '@/art/dots'
+import galmuri from '@/assets/fonts/Galmuri11.woff2'
+import galmuriBold from '@/assets/fonts/Galmuri11-Bold.woff2'
+import './toolbox.css'
+
+const api = window.toolboxApi
+const app = document.getElementById('app')!
+let state: ToolboxState | null = null
+
+void new FontFace('WhGalmuri', `url(${galmuri})`).load().then((f) => document.fonts.add(f))
+void new FontFace('WhGalmuri', `url(${galmuriBold})`, { weight: 'bold' }).load().then((f) => document.fonts.add(f))
+
+const act = (a: ToolboxAction): void => api.act(a)
+const same = (a: Tool, b: Tool): boolean => JSON.stringify(a) === JSON.stringify(b)
+
+function iconCanvas(s: Sprite): HTMLCanvasElement {
+  const c = document.createElement('canvas')
+  c.width = s.canvas.width
+  c.height = s.canvas.height
+  c.getContext('2d')!.drawImage(s.canvas, 0, 0)
+  c.className = 'ico'
+  return c
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag)
+  if (cls) e.className = cls
+  if (text) e.textContent = text
+  return e
+}
+
+function toolButton(tool: Tool, label: string, icon: HTMLElement | null, title = label): HTMLButtonElement {
+  const b = el('button', 'tool')
+  b.title = title
+  if (icon) b.append(icon)
+  b.append(el('span', 'lbl', label))
+  if (state && same(state.tool, tool)) b.classList.add('on')
+  b.onclick = () => act({ t: 'tool', tool: state && same(state.tool, tool) ? { t: 'none' } : tool })
+  return b
+}
+
+function section(title: string, hint = ''): HTMLElement {
+  const s = el('section')
+  const h = el('h2', '', title)
+  if (hint) h.append(el('small', '', hint))
+  s.append(h)
+  return s
+}
+
+function render(): void {
+  const s = state
+  if (!s) return
+  app.innerHTML = ''
+
+  const head = el('header')
+  head.append(el('b', 'title', '🌀 웜홀 모니터'))
+  const close = el('button', 'x', '–')
+  close.title = '공구함 숨기기 (메뉴 막대 아이콘으로 다시 열기)'
+  close.onclick = () => act({ t: 'hide' })
+  head.append(close)
+  app.append(head)
+
+  // 권한 안내
+  if (!s.canMove && s.settings.pushWindows) {
+    const warn = el('div', 'warn')
+    warn.append(el('span', '', '창을 밀어내려면 손쉬운 사용 권한이 필요해요.'))
+    const b = el('button', 'small', '권한 켜기')
+    b.onclick = () => act({ t: 'open-accessibility' })
+    warn.append(b)
+    app.append(warn)
+  }
+
+  // 기본 도구
+  const basic = section('도구', s.tool.t === 'none' ? '· 지금은 화면을 그대로 써요' : '· ESC 로 손 놓기')
+  const row = el('div', 'grid g4')
+  const off = el('button', 'tool' + (s.tool.t === 'none' ? ' on' : ''))
+  off.append(el('span', 'big', '🖱'), el('span', 'lbl', '손 놓기'))
+  off.title = '도구를 내려놓고 화면을 그대로 써요 (ESC)'
+  off.onclick = () => act({ t: 'tool', tool: { t: 'none' } })
+  row.append(off)
+  row.append(toolButton({ t: 'portal' }, '웜홀', iconCanvas(portalSprite(0, 16, 2, 3, 1, false)), '두 번 클릭하면 한 쌍 · 끌면 나오는 방향'))
+  const hand = el('span', 'big', '✋')
+  row.append(toolButton({ t: 'hand' }, '손', hand, '장난감 잡아 던지기 · 구조물·웜홀 옮기기 · 노란 손잡이로 돌리기'))
+  const er = el('span', 'big', '🧽')
+  row.append(toolButton({ t: 'erase' }, '지우개', er, '문지르면 지워져요 (어느 도구든 오른쪽 클릭도 지우기)'))
+  basic.append(row)
+  app.append(basic)
+
+  // 굴릴 것 · 쏠 것
+  const roll = section('굴릴 것', '· 클릭 놓기 / 당겨서 쏘기')
+  const rg = el('div', 'grid g6')
+  for (const k of ITEM_KINDS) if (ITEMS[k].group === 'roll') rg.append(toolButton({ t: 'item', kind: k }, ITEMS[k].name, iconCanvas(iconFor(k, 2))))
+  roll.append(rg)
+  app.append(roll)
+
+  const shoot = section('쏠 것', '· 화살은 창에 박혀요')
+  const sg = el('div', 'grid g6')
+  for (const k of ITEM_KINDS) if (ITEMS[k].group === 'shoot') sg.append(toolButton({ t: 'item', kind: k }, ITEMS[k].name, iconCanvas(iconFor(k, 2))))
+  shoot.append(sg)
+  app.append(shoot)
+
+  const st = section('구조물', '· 끌면서 놓으면 기울어져요')
+  const stg = el('div', 'grid g6')
+  for (const k of STRUCTURE_KINDS) stg.append(toolButton({ t: 'struct', kind: k }, STRUCTURES[k].name, iconCanvas(iconFor(k, 2))))
+  st.append(stg)
+  app.append(st)
+
+  const dr = section('그리기', '· 그린 선은 벽이 돼요')
+  const dg = el('div', 'grid g4')
+  for (const mat of DRAW_MATERIALS) dg.append(toolButton({ t: 'draw', mat }, MATERIALS[mat].name, iconCanvas(materialSwatch(mat, 2))))
+  dr.append(dg)
+  app.append(dr)
+
+  // 고른 것
+  if (s.sel) {
+    const sel = section(s.sel.t === 'portal' ? '고른 웜홀' : '고른 구조물', '· 휠로 돌리기')
+    const g = el('div', 'actions')
+    if (s.sel.t === 'struct') {
+      const small = el('button', 'small', '작게')
+      small.onclick = () => act({ t: 'sel-scale', dir: -1 })
+      const big = el('button', 'small', '크게')
+      big.onclick = () => act({ t: 'sel-scale', dir: 1 })
+      g.append(small, big)
+    }
+    const del = el('button', 'small danger', s.sel.t === 'portal' ? '쌍 지우기' : '지우기')
+    del.onclick = () => act({ t: 'sel-delete' })
+    g.append(del)
+    sel.append(g)
+    app.append(sel)
+  }
+
+  // 동작
+  const ac = section('정리')
+  const ag = el('div', 'actions')
+  const btn = (label: string, a: ToolboxAction, enabled = true, title = ''): void => {
+    const b = el('button', 'small', label)
+    b.disabled = !enabled
+    if (title) b.title = title
+    b.onclick = () => act(a)
+    ag.append(b)
+  }
+  btn('↶ 되돌리기', { t: 'undo' }, true, '⌘Z / Ctrl+Z')
+  btn('↻ 다시 쏘기', { t: 'relaunch' }, s.canRelaunch, '마지막으로 쏜 그대로 한 번 더 (R)')
+  btn(`🧹 장난감 치우기 ${s.counts.items || ''}`, { t: 'clear-items' }, s.counts.items > 0)
+  btn('💥 전부 치우기', { t: 'clear-all' }, s.counts.items + s.counts.structs + s.counts.strokes + s.counts.portals > 0)
+  btn(`🪟 창 원위치 ${s.counts.moved || ''}`, { t: 'restore-windows' }, s.counts.moved > 0, '밀려난 창을 처음 자리로')
+  ac.append(ag)
+  app.append(ac)
+
+  // 설정
+  const set = section('설정')
+  const toggles = el('div', 'toggles')
+  const tog = (label: string, on: boolean, patch: (v: boolean) => ToolboxAction): void => {
+    const l = el('label', 'tog')
+    const c = el('input')
+    c.type = 'checkbox'
+    c.checked = on
+    c.onchange = () => act(patch(c.checked))
+    l.append(c, el('span', '', label))
+    toggles.append(l)
+  }
+  tog('커서도 웜홀 통과', s.settings.cursorWarp, (v) => ({ t: 'settings', patch: { cursorWarp: v } }))
+  tog('창 밀어내기', s.settings.pushWindows, (v) => ({ t: 'settings', patch: { pushWindows: v } }))
+  tog('소리', s.settings.sound, (v) => ({ t: 'settings', patch: { sound: v } }))
+  const pv = el('div', 'seg')
+  pv.append(el('span', '', '궤적 미리보기'))
+  for (const [v, label] of [
+    ['full', '전체'],
+    ['short', '앞만'],
+    ['off', '끔']
+  ] as const) {
+    const b = el('button', 'small' + (s.settings.preview === v ? ' on' : ''), label)
+    b.onclick = () => act({ t: 'settings', patch: { preview: v } })
+    pv.append(b)
+  }
+  const dotSeg = el('div', 'seg')
+  dotSeg.append(el('span', '', '도트 크기'))
+  for (const v of [2, 3, 4]) {
+    const b = el('button', 'small' + (s.settings.dot === v ? ' on' : ''), `${v}`)
+    b.onclick = () => act({ t: 'settings', patch: { dot: v } })
+    dotSeg.append(b)
+  }
+  set.append(toggles, pv, dotSeg)
+  app.append(set)
+
+  const foot = el('footer')
+  foot.append(el('span', '', '오른쪽 클릭 = 지우기 · 휠 = 돌리기'))
+  const q = el('button', 'link', `종료 v${s.version}`)
+  q.onclick = () => act({ t: 'quit' })
+  foot.append(q)
+  app.append(foot)
+}
+
+api.onState((s) => {
+  state = s
+  render()
+})
+api.ready()

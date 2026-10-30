@@ -1,8 +1,9 @@
-import type { OverlayApi } from '@shared/types'
+import type { OverlayApi, ToolboxApi } from '@shared/types'
 
 declare global {
   interface Window {
     overlayApi: OverlayApi
+    toolboxApi: ToolboxApi
   }
 }
 

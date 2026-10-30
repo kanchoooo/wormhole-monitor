@@ -1,0 +1,192 @@
+/* 공구함: 어두운 도트 패널 (월급루팡·비둘기와 같은 Galmuri 글꼴) */
+:root {
+  --bg: #17112c;
+  --panel: #221a40;
+  --line: #3a2f66;
+  --ink: #f2eeff;
+  --dim: #a59ccc;
+  --accent: #b06cff;
+  --accent2: #5cecdc;
+  --warn: #ffd23f;
+  --danger: #ff5c8a;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 12px WhGalmuri, -apple-system, sans-serif;
+  user-select: none;
+  -webkit-font-smoothing: none;
+}
+#app {
+  padding: 0 10px 10px;
+}
+header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -10px 6px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-bottom: 2px solid var(--line);
+  -webkit-app-region: drag;
+}
+.title {
+  font-weight: bold;
+  font-size: 13px;
+}
+header button {
+  -webkit-app-region: no-drag;
+}
+.x {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+section {
+  margin-top: 8px;
+}
+h2 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--accent2);
+}
+h2 small {
+  margin-left: 4px;
+  font-weight: normal;
+  color: var(--dim);
+  font-size: 11px;
+}
+.grid {
+  display: grid;
+  gap: 4px;
+}
+.g4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.g6 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 4px 2px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+.tool:hover {
+  border-color: var(--accent);
+}
+.tool.on {
+  border-color: var(--warn);
+  background: #3a2c12;
+  box-shadow: inset 0 0 0 2px #000;
+}
+.tool .lbl {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.tool .big {
+  font-size: 18px;
+  line-height: 22px;
+}
+.ico {
+  max-width: 40px;
+  max-height: 26px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.actions,
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.seg {
+  margin-top: 6px;
+}
+.seg > span {
+  margin-right: auto;
+  color: var(--dim);
+}
+button.small {
+  padding: 4px 7px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+button.small:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+button.small.on {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+button.small:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+button.danger {
+  color: var(--danger);
+}
+.toggles {
+  display: grid;
+  gap: 4px;
+}
+.tog {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.tog input {
+  accent-color: var(--accent);
+}
+.warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 2px solid var(--warn);
+  color: var(--warn);
+  background: #2a2208;
+}
+footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  color: var(--dim);
+  font-size: 11px;
+}
+button.link {
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
