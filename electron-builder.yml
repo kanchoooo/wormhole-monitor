@@ -47,6 +47,8 @@ mac:
     NSAccessibilityUsageDescription: 구슬·화살·폭탄에 맞은 다른 앱 창을 밀어내려면 손쉬운 사용 권한이 필요해요.
 dmg:
   title: 웜홀 모니터
+  # dmg 도 서명 (공증·스테이플은 scripts/build-mac.mjs)
+  sign: true
   artifactName: WormholeMonitor-mac.dmg
   window:
     width: 540

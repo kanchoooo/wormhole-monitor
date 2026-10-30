@@ -18,7 +18,7 @@
 //   - 기본 키체인·로그인 키체인 암호는 건드리지 않는다
 import { execFileSync, execSync, spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync, writeSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -30,6 +30,8 @@ const publish = process.argv.includes('--publish')
 const G2 = join(process.cwd(), 'build', 'certs', 'DeveloperIDG2CA.cer')
 // 애플 PKI 에서 받은 G2 중간 인증서 (Apple Root CA 로 검증됨) — 바뀌면 빌드를 멈춘다
 const G2_SHA256 = 'f16cd3c54c7f83cea4bf1a3e6a0819c8aaa8e4a1528fd144715f350643d2df3a'
+const DMG = 'dist/WormholeMonitor-mac.dmg'
+const MANIFEST = 'dist/latest-mac.yml'
 const LOCK = join(homedir(), '.minimi-signing', '.build.lock')
 
 if (!existsSync(p12) || !existsSync(pwFile)) {
@@ -232,8 +234,48 @@ if (publish) env.GH_TOKEN = process.env.GH_TOKEN ?? execSync('gh auth token', { 
 try {
   await run('node', ['scripts/fetch-koffi.mjs', 'darwin-x64', 'darwin-arm64'])
   await run('npx', ['electron-vite', 'build'])
-  await run('npx', ['electron-builder', '--mac', '--universal', '--publish', publish ? 'always' : 'never'], env)
-  if (notarize) await run('node', ['scripts/verify-mac.mjs'])
+  // 올리기는 dmg 공증·스테이플이 끝난 뒤 직접 한다 (electron-builder 는 앱만 공증하고 dmg 는 서명만 한다)
+  await run('npx', ['electron-builder', '--mac', '--universal', '--publish', 'never'], env)
+  if (notarize) {
+    notarizeDmg()
+    await run('node', ['scripts/verify-mac.mjs'])
+  }
 } finally {
   cleanup()
+}
+if (publish) uploadToDraft()
+
+/** dmg 도 공증·스테이플 → 내려받은 dmg 를 열 때부터 Gatekeeper 가 확인할 수 있게 */
+function notarizeDmg() {
+  console.log(`\ndmg 공증 중… ${DMG}`)
+  const res = JSON.parse(execFileSync('xcrun', ['notarytool', 'submit', DMG, '--keychain-profile', profile, '--wait', '--output-format', 'json'], { encoding: 'utf8' }))
+  if (res.status !== 'Accepted') {
+    let log = ''
+    try {
+      log = execFileSync('xcrun', ['notarytool', 'log', res.id, '--keychain-profile', profile], { encoding: 'utf8' })
+    } catch {
+      /* 로그 없음 */
+    }
+    throw new Error(`dmg 공증 실패 (${res.status}) ${res.id}\n${log}`)
+  }
+  execFileSync('xcrun', ['stapler', 'staple', DMG], { stdio: 'inherit' })
+  // 스테이플로 dmg 내용이 바뀌었으니 업데이트 목록(latest-mac.yml)의 dmg 해시·크기를 고친다.
+  // (맥 자동 업데이트는 zip 을 쓰지만 목록이 실제 파일과 어긋나지 않게)
+  const buf = readFileSync(DMG)
+  const sha512 = createHash('sha512').update(buf).digest('base64')
+  const yml = readFileSync(MANIFEST, 'utf8').replace(
+    /(- url: WormholeMonitor-mac\.dmg\n\s+sha512: )\S+(\n\s+size: )\d+/,
+    (_m, a, b) => `${a}${sha512}${b}${buf.length}`
+  )
+  if (!yml.includes(sha512)) throw new Error('latest-mac.yml 의 dmg 항목을 못 찾았어요')
+  writeFileSync(MANIFEST, yml)
+  // dmg 블록맵은 스테이플 전 내용이라 쓰지 않는다 (맥 차등 업데이트는 zip 블록맵을 쓴다)
+  rmSync(`${DMG}.blockmap`, { force: true })
+}
+
+/** release.mjs 가 만든 초안 릴리스(v<버전>)에 맥 파일을 올린다 */
+function uploadToDraft() {
+  const version = JSON.parse(readFileSync('package.json', 'utf8')).version
+  const files = [DMG, 'dist/WormholeMonitor-mac.zip', 'dist/WormholeMonitor-mac.zip.blockmap', MANIFEST]
+  execFileSync('gh', ['release', 'upload', `v${version}`, ...files, '--repo', 'kanchoooo/wormhole-monitor', '--clobber'], { stdio: 'inherit', env })
 }
