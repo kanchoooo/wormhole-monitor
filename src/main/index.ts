@@ -106,7 +106,8 @@ function createToolbox(): BrowserWindow {
     title: '웜홀 모니터',
     webPreferences: { preload: preloadPath('toolbox'), sandbox: true, contextIsolation: true }
   })
-  win.setAlwaysOnTop(true, 'floating')
+  // 오버레이(screen-saver 단계)보다 한 단계 위 — 도구를 쓰는 동안에도 공구함을 누를 수 있게
+  win.setAlwaysOnTop(true, 'screen-saver', 1)
   win.on('close', (e) => {
     if (quitting) return
     e.preventDefault()
@@ -121,6 +122,7 @@ function showToolbox(): void {
   const t = toolbox
   if (t.webContents.isLoading()) t.once('ready-to-show', () => t.show())
   else t.show()
+  t.moveTop()
   pushState()
 }
 
@@ -138,6 +140,7 @@ function toggleToolbox(): void {
 
 function setTool(t: Tool): void {
   engine.setTool(t)
+  if (toolbox?.isVisible()) toolbox.moveTop()
   // 도구를 쓰는 동안만 ESC·되돌리기 단축키를 잡는다 (평소엔 다른 앱 키를 건드리지 않게)
   const want = t.t !== 'none'
   if (want && !toolKeys && !headless) {
@@ -333,6 +336,12 @@ app.whenReady().then(async () => {
     pushState()
     buildTrayMenu()
   }
+  // 공구함 위를 누른 건 도구로 쓰지 않는다
+  engine.blocked = (x, y) => {
+    if (!toolbox || toolbox.isDestroyed() || !toolbox.isVisible()) return false
+    const b = toolbox.getBounds()
+    return x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height
+  }
   recorder = new Recorder(() => store.settings, env.WH_VIDEO_DIR || undefined)
   engine.onGlobalFrame = (f, v, strokes) => recorder.push(f, v, strokes)
   recorder.onChange = () => pushState()
@@ -366,6 +375,7 @@ app.whenReady().then(async () => {
     // WH_TOOLBOX_SHOT=경로.png → 공구함을 캡처해 저장
     if (env.WH_TOOLBOX_SHOT) {
       toolbox = createToolbox()
+      toolbox.setSize(300, Number(env.WH_TOOLBOX_H) || 720)
       toolbox.webContents.once('did-finish-load', () =>
         setTimeout(async () => {
           const img = await toolbox!.webContents.capturePage()

@@ -1,5 +1,5 @@
-// 앱 아이콘(build/icon.png, 1024×1024) — 32×32 도트 웜홀을 32배로 키워 그린다.
-// 사용법: npm run icon
+// 예비 앱 아이콘 — 32×32 도트 웜홀을 32배로 키워 그린다. (지금 build/icon.png 는 Codex 로 만든 것: art-src/icon_*.png)
+// 사용법: npm run icon  → build/icon-fallback.png
 import { writeFileSync } from 'node:fs'
 import { deflateSync } from 'node:zlib'
 
@@ -90,7 +90,7 @@ ihdr.writeUInt32BE(W, 4)
 ihdr[8] = 8
 ihdr[9] = 6
 writeFileSync(
-  'build/icon.png',
+  'build/icon-fallback.png',
   Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
 )
-console.log('build/icon.png')
+console.log('build/icon-fallback.png')

@@ -49,6 +49,10 @@ export class Tools {
     private preview: () => PreviewMode
   ) {}
 
+  get dragging(): boolean {
+    return this.drag.t !== 'none'
+  }
+
   setTool(t: Tool): void {
     this.cancel()
     this.tool = t

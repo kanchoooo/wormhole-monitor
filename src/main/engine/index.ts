@@ -33,11 +33,16 @@ export class Engine {
   private cursorPrev: { x: number; y: number } | null = null
   private cursorCool = new Set<number>()
   private fx: FramePacket['fx'] = []
+  /** 공구함 위에서 누른 버튼 — 뗄 때까지 도구에 넘기지 않음 */
+  private ignoreHeld = false
+  private heldOutside = false
   /** 헤드리스 테스트: 진짜 커서·창 대신 */
   fake: FakeInput | null = null
   fakeWindows: WinRect[] | null = null
   /** 공구함에 알릴 게 바뀜 */
   onChange: (() => void) | null = null
+  /** 이 자리는 도구 입력을 무시 (공구함 위) */
+  blocked: ((x: number, y: number) => boolean) | null = null
   /** 화면 전체 프레임 (장면 기록용) */
   onGlobalFrame: ((f: FramePacket, strokesVersion: number, strokes: () => StrokeView[]) => void) | null = null
 
@@ -119,7 +124,13 @@ export class Engine {
     }
 
     const c = this.fake ?? { ...screen.getCursorScreenPoint(), ...this.input.buttons() }
-    this.tools.update(c.x, c.y, c.left, c.right)
+    // 공구함 위에서 누른 것은 도구로 쓰지 않는다 (뗄 때까지 무시, 끌던 중이면 계속)
+    const down = c.left || c.right
+    if (!this.fake && down && !this.tools.dragging && !this.heldOutside && this.blocked?.(c.x, c.y)) this.ignoreHeld = true
+    if (!down) this.ignoreHeld = false
+    this.heldOutside = down && !this.ignoreHeld
+    if (this.ignoreHeld) this.tools.update(c.x, c.y, false, false)
+    else this.tools.update(c.x, c.y, c.left, c.right)
     if (this.settings().cursorWarp && !this.fake) this.cursorWormhole(c.x, c.y, c.left || c.right)
 
     this.acc += dt

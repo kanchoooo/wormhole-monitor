@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>웜홀 모니터 다운로드</title>
+    <meta name="description" content="바탕화면에 웜홀을 뚫고 구슬·화살·볼링공을 던져요. 창이 밀려나고, 화살이 박히고, 컵에 골인하면 세로 영상이 저절로 저장돼요." />
+    <meta property="og:title" content="🌀 웜홀 모니터" />
+    <meta property="og:description" content="내 바탕화면에 웜홀을! 구슬을 튕겨서 컵에 골인시키고 릴스로 자랑하기" />
+    <meta property="og:image" content="https://kanchoooo.github.io/wormhole-monitor/img/hero.png" />
+    <link rel="icon" href="img/icon.png" />
+    <style>
+      /* 다운로드 링크: GitHub Releases 의 latest/download 는 주소가 고정이라 새 버전이 나와도 그대로 쓸 수 있다 */
+      :root {
+        --bg: #17112c;
+        --dot: #241b45;
+        --panel: #221a40;
+        --line: #3a2f66;
+        --text: #f2eeff;
+        --text-2: #a59ccc;
+        --accent: #b06cff;
+        --accent-2: #5cecdc;
+        --gold: #ffd23f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+        color: var(--text);
+        background: var(--bg) radial-gradient(var(--dot) 1px, transparent 1px) 0 0 / 8px 8px;
+        min-height: 100vh;
+      }
+      .wrap {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 36px 16px 64px;
+      }
+      header {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      header img {
+        width: 96px;
+        height: 96px;
+        image-rendering: pixelated;
+      }
+      .logo {
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin-top: 4px;
+      }
+      .tag {
+        color: var(--text-2);
+        margin-top: 6px;
+        line-height: 1.6;
+      }
+      .shot {
+        width: 100%;
+        display: block;
+        border: 3px solid var(--line);
+        border-radius: 10px;
+        image-rendering: pixelated;
+      }
+      .card {
+        margin-top: 18px;
+        background: var(--panel);
+        border: 3px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .tabs button {
+        flex: 1;
+        padding: 10px;
+        border: 2px solid var(--line);
+        background: transparent;
+        color: var(--text);
+        border-radius: 8px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .tabs button.active {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .pane {
+        display: none;
+      }
+      .pane.active {
+        display: block;
+      }
+      .dl {
+        display: block;
+        text-align: center;
+        padding: 14px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 800;
+        font-size: 18px;
+        text-decoration: none;
+        box-shadow: 0 4px 0 #6b33b3;
+      }
+      .meta {
+        text-align: center;
+        color: var(--text-2);
+        font-size: 13px;
+        margin: 8px 0 10px;
+      }
+      ol {
+        line-height: 1.8;
+        padding-left: 22px;
+      }
+      .note {
+        font-size: 13.5px;
+        line-height: 1.7;
+        color: var(--text-2);
+        border-top: 1px dashed var(--line);
+        padding-top: 10px;
+      }
+      .how {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+        text-align: center;
+        font-size: 13.5px;
+        line-height: 1.5;
+      }
+      .how > div {
+        background: var(--panel);
+        border: 2px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 6px;
+      }
+      .how b {
+        display: block;
+        font-size: 26px;
+        margin-bottom: 4px;
+      }
+      .duo {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 18px;
+        align-items: start;
+      }
+      .duo figure {
+        margin: 0;
+      }
+      .duo img {
+        width: 100%;
+        border-radius: 10px;
+        border: 2px solid var(--line);
+        display: block;
+        image-rendering: pixelated;
+      }
+      .duo figcaption {
+        text-align: center;
+        font-size: 13px;
+        color: var(--text-2);
+        margin-top: 6px;
+      }
+      footer {
+        margin-top: 24px;
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--text-2);
+        line-height: 1.7;
+      }
+      footer a {
+        color: var(--text-2);
+      }
+      @media (max-width: 560px) {
+        .how {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .duo {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <img src="img/icon.png" alt="" />
+        <div class="logo">웜홀 모니터</div>
+        <div class="tag">내 바탕화면에 웜홀을 뚫어요 🌀<br />구슬을 튕겨 컵에 골인! 화살은 창에 박히고, 볼링공은 창을 꾹 눌러요.</div>
+      </header>
+      <img class="shot" src="img/hero.png" alt="바탕화면의 웜홀 두 개를 지나 컵에 골인하는 구슬" />
+      <div class="card">
+        <div class="tabs">
+          <button data-os="mac">🍎 맥 (Mac)</button>
+          <button data-os="win">🪟 윈도우 (Windows)</button>
+        </div>
+        <div class="pane" id="pane-mac">
+          <a class="dl" href="https://github.com/kanchoooo/wormhole-monitor/releases/latest/download/WormholeMonitor-mac.dmg">⬇ 맥용 다운로드</a>
+          <div class="meta">macOS 13 (Ventura) 이상 · 애플 실리콘 / 인텔 모두 지원 · 애플 공증 완료</div>
+          <ol>
+            <li>받은 <b>WormholeMonitor-mac.dmg</b> 파일을 열어요.</li>
+            <li><b>웜홀 모니터</b> 아이콘을 <b>응용 프로그램</b> 폴더로 끌어다 놓아요.</li>
+            <li>응용 프로그램(Launchpad)에서 <b>웜홀 모니터</b>를 실행하면 공구함이 떠요.</li>
+            <li><b>웜홀</b>을 두 번 클릭해 한 쌍 놓고, <b>유리구슬</b>을 골라 당겼다 놓으면 발사!</li>
+          </ol>
+          <div class="note">
+            💡 <b>창 밀어내기</b>는 맥의 <b>손쉬운 사용</b> 권한이 필요해요 (공구함의 <b>권한 켜기</b> → 웜홀 모니터 켜기).<br />
+            <b>실화면 녹화</b>를 쓸 때만 <b>화면 기록</b> 권한을 물어봐요. 도트 영상은 권한 없이 저장돼요.
+          </div>
+        </div>
+        <div class="pane" id="pane-win">
+          <a class="dl" href="https://github.com/kanchoooo/wormhole-monitor/releases/latest/download/WormholeMonitor-Setup.exe">⬇ 윈도우용 다운로드</a>
+          <div class="meta">Windows 10 / 11 (64비트)</div>
+          <ol>
+            <li>받은 <b>WormholeMonitor-Setup.exe</b> 를 실행해요.</li>
+            <li>파란 창 <b>“Windows의 PC 보호”</b>가 뜨면 <b>추가 정보</b>를 누르고 <b>실행</b>을 눌러요.</li>
+            <li>설치가 끝나면 웜홀 모니터 공구함이 열려요.</li>
+            <li><b>웜홀</b>을 두 번 클릭해 한 쌍 놓고, <b>유리구슬</b>을 골라 당겼다 놓으면 발사!</li>
+          </ol>
+          <div class="note">💡 “PC 보호” 창은 새로 나온 프로그램이라 뜨는 거예요. <b>추가 정보 → 실행</b>을 누르면 설치돼요.<br />관리자 권한으로 실행된 창은 밀리지 않아요.</div>
+        </div>
+      </div>
+      <div class="how">
+        <div><b>🌀</b>웜홀을<br />마음껏 뚫고</div>
+        <div><b>🎯</b>당겨서 쏘면<br />궤적이 보여요</div>
+        <div><b>🏆</b>컵에 골인하면<br />빠밤!</div>
+        <div><b>🎬</b>세로 영상이<br />저절로 저장</div>
+      </div>
+      <div class="duo">
+        <figure>
+          <img src="img/screen.png" alt="웜홀 무한 낙하와 컵 골인" />
+          <figcaption>무한 낙하 · 화살 박기 · 창 누르기</figcaption>
+        </figure>
+        <figure>
+          <img src="img/toolbox.png" alt="공구함" />
+          <figcaption>구조물 12종 · 그리기 4가지 재질 · 도전 코스 8개</figcaption>
+        </figure>
+      </div>
+      <footer>
+        ESC = 도구 내려놓기(화면 그대로 쓰기) · 오른쪽 클릭 = 지우기 · 휠 = 돌리기 · ⌃⌥W 공구함 · ⌃⌥R 녹화<br />
+        밀려난 창은 공구함의 <b>창 원위치</b>로 한 번에 돌아와요<br />
+        <a href="https://github.com/kanchoooo/wormhole-monitor">GitHub에서 소스 보기</a>
+      </footer>
+    </div>
+    <script>
+      // 접속한 OS 탭을 자동으로 선택
+      const guess = /Windows/i.test(navigator.userAgent) ? 'win' : 'mac'
+      const select = (os) => {
+        document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.os === os))
+        document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.id === 'pane-' + os))
+      }
+      document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => select(b.dataset.os)))
+      const q = new URLSearchParams(location.search).get('os')
+      select(q === 'win' || q === 'mac' ? q : guess)
+    </script>
+  </body>
+</html>
