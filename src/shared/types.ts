@@ -25,6 +25,8 @@ export interface OverlayApi {
   onFrame(cb: (v: FramePacket) => void): void
   onScene(cb: (v: ScenePacket) => void): void
   onSettings(cb: (v: Settings) => void): void
+  /** 실화면 녹화 중 (도구 표시를 숨긴다) */
+  onRecording(cb: (on: boolean) => void): void
   /** 휠로 고른 것 돌리기 (도구를 쓰는 동안만 옴) */
   wheel(dy: number): void
   ready(): void
@@ -41,7 +43,7 @@ export type Fx =
   | { t: 'bell'; x: number; y: number }
   | { t: 'splat'; x: number; y: number }
   | { t: 'boom'; x: number; y: number }
-  | { t: 'goal'; x: number; y: number; k: StructureKind; bounces: number; portals: number; attempts: number; item: ItemKind; id: number }
+  | { t: 'goal'; x: number; y: number; k: StructureKind; bounces: number; portals: number; attempts: number; item: ItemKind; id: number; age: number }
   | { t: 'cursor-warp'; x: number; y: number; c: number }
 
 export interface StructView {
@@ -132,6 +134,10 @@ export interface Settings {
   preview: PreviewMode
   /** 창 밀기 (손쉬운 사용 권한 필요) */
   pushWindows: boolean
+  /** 골인하면 도트 영상 자동 저장 */
+  autoClip: boolean
+  /** 실화면 녹화는 골인 2초 뒤 자동으로 멈추고 저장 */
+  stopOnGoal: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -140,7 +146,9 @@ export const DEFAULT_SETTINGS: Settings = {
   volume: 0.6,
   cursorWarp: true,
   preview: 'full',
-  pushWindows: true
+  pushWindows: true,
+  autoClip: true,
+  stopOnGoal: true
 }
 
 /** 메인 → 공구함 */
@@ -158,6 +166,13 @@ export interface ToolboxState {
   toast: { text: string; at: number } | null
   /** 지금 깔린 도전 코스 */
   challenge: string | null
+  /** 실화면 녹화 중이면 시작 시각 */
+  recordingSince: number | null
+  /** 도트 영상 만드는 중 */
+  rendering: boolean
+  /** 맥 화면 기록 권한 (granted · denied · not-determined …) */
+  screenPerm: string
+  lastSaved: string | null
 }
 
 export type ToolboxAction =
@@ -175,6 +190,9 @@ export type ToolboxAction =
   | { t: 'course-copy' }
   | { t: 'course-paste' }
   | { t: 'course-load'; id: string }
+  | { t: 'record' }
+  | { t: 'open-videos' }
+  | { t: 'open-screen-permission' }
   | { t: 'hide' }
   | { t: 'quit' }
 
@@ -182,5 +200,56 @@ export interface ToolboxApi {
   platform: string
   onState(cb: (s: ToolboxState) => void): void
   act(a: ToolboxAction): void
+  ready(): void
+}
+
+// ───────── 영상 (스튜디오 창) ─────────
+
+/** 기록된 한 프레임 (t = 밀리초) */
+export interface LogFrame {
+  t: number
+  f: FramePacket
+}
+
+/** 도트 영상으로 다시 그릴 구간 */
+export interface Clip {
+  id: string
+  frames: LogFrame[]
+  /** 그 구간에 그려져 있던 선 (바뀐 때마다) */
+  strokes: { t: number; strokes: StrokeView[] }[]
+  /** 그림을 그릴 전체 영역 (구간 안의 모든 것) */
+  view: Rect
+  /** 카메라가 따라갈 장난감 (없으면 움직이는 것 가운데) */
+  follow: number | null
+  /** 골인 자리 */
+  goal: { x: number; y: number } | null
+  /** 골인 순간 (없으면 슬로모션 없음) */
+  goalAt: number | null
+  dot: number
+  sound: boolean
+}
+
+export interface LiveStart {
+  id: string
+  sourceId: string
+  /** 녹화하는 화면 (화면 좌표) */
+  bounds: Rect
+  sound: boolean
+}
+
+export interface StudioDone {
+  id: string
+  kind: 'dot' | 'screen'
+  data: Uint8Array | null
+  ext: 'mp4' | 'webm'
+  error?: string
+}
+
+export interface StudioApi {
+  onClip(cb: (c: Clip) => void): void
+  onLiveStart(cb: (s: LiveStart) => void): void
+  onLiveFrame(cb: (f: FramePacket) => void): void
+  onLiveStop(cb: () => void): void
+  done(d: StudioDone): void
   ready(): void
 }

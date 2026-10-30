@@ -2,7 +2,7 @@
 // 아무것도 없고 도구도 안 쓰면 멈춘다 (CPU 0).
 import { screen } from 'electron'
 import { PORTAL_R } from '@shared/defs'
-import type { FramePacket, Settings, Tool } from '@shared/types'
+import type { FramePacket, Settings, StrokeView, Tool } from '@shared/types'
 import type { Overlays } from '../overlays'
 import { listWindows, type WinRect } from '../windows'
 import { createInput, type Input } from '../windows/input'
@@ -38,6 +38,8 @@ export class Engine {
   fakeWindows: WinRect[] | null = null
   /** 공구함에 알릴 게 바뀜 */
   onChange: (() => void) | null = null
+  /** 화면 전체 프레임 (장면 기록용) */
+  onGlobalFrame: ((f: FramePacket, strokesVersion: number, strokes: () => StrokeView[]) => void) | null = null
 
   constructor(
     private overlays: Overlays,
@@ -152,7 +154,9 @@ export class Engine {
     f.fx.push(...this.fx)
     this.fx = []
     const ui = this.tools.view()
-    const wins = this.debug ? this.world.windowRects() : undefined
+    const allWins = this.onGlobalFrame || this.debug ? this.world.windowRects() : undefined
+    const wins = this.debug ? allWins : undefined
+    this.onGlobalFrame?.({ ...f, ui, wins: allWins }, this.world.strokesVersion, () => this.world.strokeViews())
     const sendStrokes = this.strokesSent !== this.world.strokesVersion
     this.strokesSent = this.world.strokesVersion
     const strokes = sendStrokes ? this.world.strokeViews() : null

@@ -203,3 +203,10 @@ button.chal {
   color: var(--accent2);
   background: #0f2a2a;
 }
+.dim {
+  color: var(--dim);
+}
+button.small.rec {
+  border-color: #ff4d4d;
+  color: #ff4d4d;
+}

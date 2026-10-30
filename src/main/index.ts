@@ -10,6 +10,7 @@ import { runScript, type Step } from './engine/script'
 import { env, loadRenderer, preloadPath } from './env'
 import { trayIcon } from './icons'
 import { Overlays } from './overlays'
+import { Recorder } from './recorder'
 import { Store } from './store'
 import { setupUpdater } from './updater'
 import { listWindows } from './windows'
@@ -25,6 +26,7 @@ let tray: Tray | null = null
 let toolbox: BrowserWindow | null = null
 let overlays: Overlays
 let engine: Engine
+let recorder: Recorder
 let store: Store
 let quitting = false
 let toolKeys = false
@@ -32,6 +34,7 @@ let toast: ToolboxState['toast'] = null
 let challenge: string | null = null
 const startHidden = process.argv.includes('--hidden') || (process.platform === 'darwin' && app.getLoginItemSettings().wasOpenedAtLogin)
 const TOGGLE_KEY = 'Control+Alt+W'
+const RECORD_KEY = 'Control+Alt+R'
 
 // ───────── 공구함 ─────────
 
@@ -53,7 +56,11 @@ function toolboxState(): ToolboxState {
     canRelaunch: !!engine.tools.lastLaunch,
     version: app.getVersion(),
     toast,
-    challenge
+    challenge,
+    recordingSince: recorder.live?.since ?? null,
+    rendering: recorder.rendering > 0,
+    screenPerm: process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('screen') : 'granted',
+    lastSaved: recorder.lastSaved
   }
 }
 
@@ -219,6 +226,16 @@ function handle(a: ToolboxAction): void {
         void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility')
       }
       break
+    case 'record':
+      void toggleRecord()
+      break
+    case 'open-videos':
+      if (recorder.lastSaved) shell.showItemInFolder(recorder.lastSaved)
+      else void shell.openPath(join(app.getPath('videos'), '웜홀 모니터'))
+      break
+    case 'open-screen-permission':
+      void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+      break
     case 'hide':
       hideToolbox()
       break
@@ -229,6 +246,20 @@ function handle(a: ToolboxAction): void {
   }
   engine.wake()
   pushState()
+}
+
+async function toggleRecord(): Promise<void> {
+  if (recorder.live) {
+    recorder.stopLive()
+    return say('녹화를 멈췄어요. 영상 두 개(화면·도트)를 만드는 중…')
+  }
+  if (process.platform === 'darwin' && systemPreferences.getMediaAccessStatus('screen') === 'denied') {
+    return say('화면 기록 권한이 꺼져 있어요. 설정 › 개인정보 보호 › 화면 기록에서 웜홀 모니터를 켜 주세요')
+  }
+  const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const err = await recorder.startLive(d)
+  if (err) return say(err)
+  say(store.settings.stopOnGoal ? '🔴 녹화 중 — 골인하면 2초 뒤 저절로 멈춰요' : '🔴 녹화 중 — 다시 누르면 멈춰요')
 }
 
 async function pasteCourse(): Promise<void> {
@@ -251,6 +282,7 @@ function buildTrayMenu(): void {
     Menu.buildFromTemplate([
       { label: toolbox?.isVisible() ? '공구함 숨기기' : '공구함 열기', accelerator: TOGGLE_KEY, click: toggleToolbox },
       { label: '손 놓기 (ESC)', enabled: engine.tools.tool.t !== 'none', click: () => setTool({ t: 'none' }) },
+      { label: recorder?.live ? '⏹ 녹화 멈추기' : '🎥 실화면 녹화', accelerator: RECORD_KEY, click: () => void toggleRecord() },
       { type: 'separator' },
       { label: '장난감 치우기', click: () => handle({ t: 'clear-items' }) },
       { label: '전부 치우기', click: () => handle({ t: 'clear-all' }) },
@@ -301,6 +333,16 @@ app.whenReady().then(async () => {
     pushState()
     buildTrayMenu()
   }
+  recorder = new Recorder(() => store.settings, env.WH_VIDEO_DIR || undefined)
+  engine.onGlobalFrame = (f, v, strokes) => recorder.push(f, v, strokes)
+  recorder.onChange = () => pushState()
+  recorder.onSaved = (files) => say(`🎬 영상 저장: ${files.map((f) => (f.includes('-화면.') ? '화면' : '도트')).join(' · ')} — 정리 › 영상 폴더`)
+  recorder.onLive = (on) => {
+    overlays.each((_b, send) => send('overlay:recording', on))
+    // 실화면 영상에 공구함이 찍히지 않게
+    if (toolbox && !toolbox.isDestroyed()) toolbox.setContentProtection(on)
+    buildTrayMenu()
+  }
   overlays.onReady = () => {
     overlays.each((_b, send) => send('overlay:settings', store.settings))
     engine.resendScene()
@@ -341,6 +383,7 @@ app.whenReady().then(async () => {
   tray.on('click', () => (process.platform === 'win32' ? toggleToolbox() : undefined))
   buildTrayMenu()
   globalShortcut.register(TOGGLE_KEY, toggleToolbox)
+  globalShortcut.register(RECORD_KEY, () => void toggleRecord())
   if (!startHidden) showToolbox()
   setupUpdater()
 })
@@ -377,6 +420,7 @@ function startScript(): void {
 app.on('before-quit', () => {
   quitting = true
   engine?.destroy()
+  recorder?.destroy()
 })
 
 app.on('will-quit', () => globalShortcut.unregisterAll())

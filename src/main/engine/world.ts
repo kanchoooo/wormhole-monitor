@@ -1191,7 +1191,7 @@ export class World {
         if (!(vly > 50 && prevLy < goal.y)) continue
       }
       it.scored.add(st.id)
-      this.fx.push({ t: 'goal', x: st.x, y: st.y, k: st.kind, bounces: it.bounces, portals: it.portals, attempts: Math.max(1, this.attempts), item: it.kind, id: it.id })
+      this.fx.push({ t: 'goal', x: st.x, y: st.y, k: st.kind, bounces: it.bounces, portals: it.portals, attempts: Math.max(1, this.attempts), item: it.kind, id: it.id, age: this.time - it.born })
       this.attempts = 0
     }
   }

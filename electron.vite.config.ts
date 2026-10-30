@@ -13,7 +13,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           overlay: resolve('src/preload/overlay.ts'),
-          toolbox: resolve('src/preload/toolbox.ts')
+          toolbox: resolve('src/preload/toolbox.ts'),
+          studio: resolve('src/preload/studio.ts')
         }
       }
     }
@@ -24,7 +25,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           overlay: resolve('src/renderer/overlay.html'),
-          toolbox: resolve('src/renderer/toolbox.html')
+          toolbox: resolve('src/renderer/toolbox.html'),
+          studio: resolve('src/renderer/studio.html')
         }
       }
     }

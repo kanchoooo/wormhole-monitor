@@ -12,11 +12,11 @@ import { join } from 'path'
  */
 export const env = process.env
 
-export function preloadPath(name: 'overlay' | 'toolbox'): string {
+export function preloadPath(name: 'overlay' | 'toolbox' | 'studio'): string {
   return join(__dirname, `../preload/${name}.js`)
 }
 
-export function loadRenderer(win: BrowserWindow, page: 'overlay' | 'toolbox', o: { hash?: string; query?: Record<string, string> } = {}): void {
+export function loadRenderer(win: BrowserWindow, page: 'overlay' | 'toolbox' | 'studio', o: { hash?: string; query?: Record<string, string> } = {}): void {
   const devUrl = env.ELECTRON_RENDERER_URL
   const q = o.query && Object.keys(o.query).length ? '?' + new URLSearchParams(o.query).toString() : ''
   if (devUrl) {

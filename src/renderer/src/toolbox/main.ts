@@ -164,6 +164,42 @@ function render(): void {
   co.append(share)
   app.append(co)
 
+  // 영상
+  const vid = section('영상', '· 골인 장면을 세로 영상으로')
+  const vg = el('div', 'actions')
+  const rec = el('button', 'small' + (s.recordingSince ? ' rec' : ''), s.recordingSince ? `⏹ 멈추기 ${Math.floor((Date.now() - s.recordingSince) / 1000)}초` : '🎥 실화면 녹화')
+  rec.title = '실제 화면을 녹화해요 (공구함은 안 찍혀요). 멈추면 같은 장면의 도트 영상도 같이 저장 · ⌃⌥R'
+  rec.onclick = () => act({ t: 'record' })
+  const folder = el('button', 'small', '📂 영상 폴더')
+  folder.onclick = () => act({ t: 'open-videos' })
+  vg.append(rec, folder)
+  if (s.rendering) vg.append(el('span', 'dim', '도트 영상 만드는 중…'))
+  vid.append(vg)
+  if (s.screenPerm === 'denied') {
+    const warn = el('div', 'warn')
+    warn.append(el('span', '', '실화면 녹화는 화면 기록 권한이 필요해요.'))
+    const b = el('button', 'small', '권한 켜기')
+    b.onclick = () => act({ t: 'open-screen-permission' })
+    warn.append(b)
+    vid.append(warn)
+  }
+  const vt = el('div', 'toggles')
+  vt.style.marginTop = '4px'
+  const vtog = (label: string, on: boolean, patch: (v: boolean) => ToolboxAction): void => {
+    const l = el('label', 'tog')
+    const c = el('input')
+    c.type = 'checkbox'
+    c.checked = on
+    c.onchange = () => act(patch(c.checked))
+    l.append(c, el('span', '', label))
+    vt.append(l)
+  }
+  vtog('골인하면 도트 영상 자동 저장', s.settings.autoClip, (v) => ({ t: 'settings', patch: { autoClip: v } }))
+  vtog('녹화는 골인 2초 뒤 자동으로 멈춤', s.settings.stopOnGoal, (v) => ({ t: 'settings', patch: { stopOnGoal: v } }))
+  vid.append(vt)
+  app.append(vid)
+  if (s.recordingSince) setTimeout(render, 1000)
+
   // 동작
   const ac = section('정리')
   const ag = el('div', 'actions')

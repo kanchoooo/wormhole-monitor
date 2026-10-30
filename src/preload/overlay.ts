@@ -11,6 +11,7 @@ const api: OverlayApi = {
   onFrame: (cb) => on('overlay:frame', cb),
   onScene: (cb) => on('overlay:scene', cb),
   onSettings: (cb) => on('overlay:settings', cb),
+  onRecording: (cb) => on('overlay:recording', cb),
   wheel: (dy) => ipcRenderer.send('overlay:wheel', dy),
   ready: () => ipcRenderer.send('overlay:ready')
 }

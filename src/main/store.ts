@@ -68,6 +68,8 @@ function sanitize(s: Settings): Settings {
     volume: Math.max(0, Math.min(1, Number(s.volume) || 0)),
     cursorWarp: !!s.cursorWarp,
     preview: preview.includes(s.preview) ? s.preview : DEFAULT_SETTINGS.preview,
-    pushWindows: !!s.pushWindows
+    pushWindows: !!s.pushWindows,
+    autoClip: !!s.autoClip,
+    stopOnGoal: !!s.stopOnGoal
   }
 }
