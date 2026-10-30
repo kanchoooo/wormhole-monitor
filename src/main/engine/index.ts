@@ -93,12 +93,23 @@ export class Engine {
     if (active && !this.timer) {
       this.last = performance.now()
       this.acc = 0
-      this.timer = setInterval(() => this.tick(), 8)
+      this.setRate(8)
+    } else if (active && this.slow) {
+      this.setRate(8)
     } else if (!active && this.timer) {
       this.send() // 빈 화면 한 번
       clearInterval(this.timer)
       this.timer = null
     }
+  }
+
+  /** 8ms(바쁠 때) ↔ 33ms(다 멈췄을 때). 다시 움직이면 wake() 나 tick 이 되돌린다 */
+  private slow = false
+  private idleSince = 0
+  private setRate(ms: number): void {
+    if (this.timer) clearInterval(this.timer)
+    this.slow = ms > 8
+    this.timer = setInterval(() => this.tick(), ms)
   }
 
   private tick(): void {
@@ -156,7 +167,12 @@ export class Engine {
       this.tools.changed = false
       this.onChange?.()
     }
-    if (this.tools.tool.t === 'none' && this.world.empty) this.wake()
+    if (this.tools.tool.t === 'none' && this.world.empty) return this.wake()
+    // 도구도 안 쓰고 1초 넘게 아무것도 안 움직이면 느리게 (커서 웜홀은 30Hz 로도 충분)
+    const idle = this.tools.tool.t === 'none' && this.world.idle
+    if (!idle) this.idleSince = now
+    if (idle && !this.slow && now - this.idleSince > 1000) this.setRate(33)
+    else if (!idle && this.slow) this.setRate(8)
   }
 
   /** 오버레이마다 그 화면 근처 것만 */

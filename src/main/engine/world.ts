@@ -179,6 +179,21 @@ export class World {
   get empty(): boolean {
     return this.items.size === 0 && this.structs.size === 0 && this.strokes.size === 0 && this.portals.size === 0
   }
+  /** 움직이는 게 없나 (장난감이 다 잠들었고 창도 멈춤) — 루프를 느리게 돌려도 된다 */
+  get idle(): boolean {
+    if (this.grab) return false
+    for (const it of this.items.values()) if (it.body && !it.body.isSleeping()) return false
+    for (const st of this.structs.values()) if (st.moving && STRUCTURES[st.kind].moving?.mode === 'spin') return false
+    for (const w of this.wins.values()) {
+      if (w.mode === 'user') return false
+      if (w.mode === 'dyn') {
+        const v = w.body.linvel()
+        if (v.x !== 0 || v.y !== 0) return false
+      }
+    }
+    return true
+  }
+
   get itemCount(): number {
     return this.items.size
   }
