@@ -242,3 +242,7 @@ button.small.primary {
   border-color: var(--accent);
   background: #3a1f66;
 }
+.key {
+  margin-right: 4px;
+  color: var(--warn);
+}

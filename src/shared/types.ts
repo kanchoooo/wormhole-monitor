@@ -138,6 +138,8 @@ export interface Settings {
   autoClip: boolean
   /** 실화면 녹화는 골인 2초 뒤 자동으로 멈추고 저장 */
   stopOnGoal: boolean
+  /** 모두 숨기기 단축키 (Electron accelerator, 예: Control+Alt+H) */
+  hideKey: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -148,7 +150,8 @@ export const DEFAULT_SETTINGS: Settings = {
   preview: 'full',
   pushWindows: true,
   autoClip: true,
-  stopOnGoal: true
+  stopOnGoal: true,
+  hideKey: 'Control+Alt+H'
 }
 
 /** 메인 → 공구함 */
@@ -261,3 +264,29 @@ export interface StudioApi {
 export const MORE_APPS_URL = 'https://easyticket.co.kr/apps/'
 export const INSTAGRAM_URL = 'https://www.instagram.com/easyticket.co.kr/'
 export const INSTAGRAM_HANDLE = '@easyticket.co.kr'
+
+/** 단축키를 보기 좋게 (맥: ⌃⌥⇧⌘ 기호, 윈도우: Ctrl+Alt+…) */
+export function keyLabel(key: string, platform: string): string {
+  if (platform !== 'darwin') return key.replace(/Control/g, 'Ctrl').replace(/Command/g, 'Win')
+  return key.replace(/Control\+/g, '⌃').replace(/Alt\+/g, '⌥').replace(/Shift\+/g, '⇧').replace(/Command\+/g, '⌘')
+}
+
+/** 키 입력 → Electron 단축키 문자열. 수식키 없는 일반 키(F1~F24 빼고)나 수식키만 누른 건 null */
+export function acceleratorOf(e: { key: string; code: string; ctrlKey: boolean; altKey: boolean; shiftKey: boolean; metaKey: boolean }, platform: string): string | null {
+  let key: string | null = null
+  const c = e.code
+  if (/^Key[A-Z]$/.test(c)) key = c.slice(3)
+  else if (/^Digit[0-9]$/.test(c)) key = c.slice(5)
+  else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(c)) key = c
+  else if (/^Numpad[0-9]$/.test(c)) key = 'num' + c.slice(6)
+  else if (c === 'Space') key = 'Space'
+  else if (c === 'Backquote') key = '`'
+  if (!key) return null
+  const mods: string[] = []
+  if (e.ctrlKey) mods.push('Control')
+  if (e.altKey) mods.push('Alt')
+  if (e.shiftKey) mods.push('Shift')
+  if (e.metaKey) mods.push(platform === 'darwin' ? 'Command' : 'Super')
+  if (!mods.length && !/^F\d+$/.test(key)) return null
+  return [...mods, key].join('+')
+}

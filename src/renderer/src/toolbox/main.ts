@@ -1,7 +1,7 @@
 // 공구함: 도구 고르기·설정·정리. 상태는 메인이 갖고 있고 여기는 보여 주기만 한다.
 import { CHALLENGES } from '@shared/courses'
 import { DRAW_MATERIALS, ITEM_KINDS, ITEMS, MATERIALS, STRUCTURE_KINDS, STRUCTURES } from '@shared/defs'
-import { INSTAGRAM_HANDLE, type Tool, type ToolboxAction, type ToolboxState } from '@shared/types'
+import { acceleratorOf, INSTAGRAM_HANDLE, keyLabel, type Tool, type ToolboxAction, type ToolboxState } from '@shared/types'
 import { iconFor, materialSwatch, portalSprite, type Sprite } from '@/art/dots'
 import galmuri from '@/assets/fonts/Galmuri11.woff2'
 import galmuriBold from '@/assets/fonts/Galmuri11-Bold.woff2'
@@ -10,6 +10,8 @@ import './toolbox.css'
 const api = window.toolboxApi
 const app = document.getElementById('app')!
 let state: ToolboxState | null = null
+/** 숨기기 단축키를 새로 받는 중 */
+let capturingKey = false
 
 void new FontFace('WhGalmuri', `url(${galmuri})`).load().then((f) => document.fonts.add(f))
 void new FontFace('WhGalmuri', `url(${galmuriBold})`, { weight: 'bold' }).load().then((f) => document.fonts.add(f))
@@ -60,7 +62,8 @@ function render(): void {
   head.append(el('b', 'title', '🌀 웜홀 모니터'))
   const btns = el('div', 'head-btns')
   const hideAll = el('button', 'hide-all', '🙈 숨기기')
-  hideAll.title = '놓은 것·장난감·공구함을 그대로 멈춰서 모두 숨겨요. ⌃⌥H 로 다시 보이기'
+  const hk = keyLabel(s.settings.hideKey, s.platform)
+  hideAll.title = `놓은 것·장난감·공구함을 그대로 멈춰서 모두 숨겨요. ${hk} 로 다시 보이기`
   hideAll.onclick = () => act({ t: 'hide-all' })
   const close = el('button', 'x', '–')
   close.title = '공구함만 닫기 (놓은 것은 화면에 그대로 · ⌃⌥W 로 다시 열기)'
@@ -256,7 +259,17 @@ function render(): void {
     b.onclick = () => act({ t: 'settings', patch: { dot: v } })
     dotSeg.append(b)
   }
-  set.append(toggles, pv, dotSeg)
+  const keySeg = el('div', 'seg')
+  keySeg.append(el('span', '', '모두 숨기기 단축키'))
+  const keyNow = el('b', 'key', capturingKey ? '눌러 주세요…' : hk)
+  const change = el('button', 'small' + (capturingKey ? ' on' : ''), capturingKey ? '취소' : '바꾸기')
+  change.title = '바꾸기를 누른 뒤 새 단축키를 누르세요 (예: Ctrl+Shift+H). ESC = 취소'
+  change.onclick = () => {
+    capturingKey = !capturingKey
+    render()
+  }
+  keySeg.append(keyNow, change)
+  set.append(toggles, pv, dotSeg, keySeg)
   app.append(set)
 
   const more = el('div', 'more')
@@ -271,12 +284,28 @@ function render(): void {
   app.append(more)
 
   const foot = el('footer')
-  foot.append(el('span', '', '오른쪽 클릭 = 지우기 · 휠 = 돌리기 · ⌃⌥H 숨기기'))
+  foot.append(el('span', '', `오른쪽 클릭 = 지우기 · 휠 = 돌리기 · ${hk} 숨기기`))
   const q = el('button', 'link', `종료 v${s.version}`)
   q.onclick = () => act({ t: 'quit' })
   foot.append(q)
   app.append(foot)
 }
+
+// 숨기기 단축키 받기: 수식키 + 글자/숫자 (또는 F키 하나)
+window.addEventListener('keydown', (e) => {
+  if (!capturingKey || !state) return
+  e.preventDefault()
+  if (e.key === 'Escape') {
+    capturingKey = false
+    render()
+    return
+  }
+  const acc = acceleratorOf(e, state.platform)
+  if (!acc) return // 수식키만 누름 → 계속 기다림
+  capturingKey = false
+  act({ t: 'settings', patch: { hideKey: acc } })
+  render()
+})
 
 api.onState((s) => {
   state = s

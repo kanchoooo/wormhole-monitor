@@ -192,9 +192,6 @@ export class Painter {
     if (!f) return
     if (this.opts.backdrop) this.drawBackdrop(f)
 
-    // 도구를 쓰는 중: 화면 가장자리에 점선 (클릭이 막혀 있다는 표시)
-    if (f.ui && this.opts.chrome) this.border(t)
-
     ctx.drawImage(this.strokeLayer, 0, 0)
 
     if (this.opts.debug && !this.opts.backdrop && f.wins) {
@@ -343,23 +340,6 @@ export class Painter {
     ctx.fillStyle = color
     for (let s = off; s < l; s += step) ctx.fillRect(this.snap(x0 + ((x1 - x0) * s) / l), this.snap(y0 + ((y1 - y0) * s) / l), dot, dot)
     ctx.globalAlpha = 1
-  }
-
-  private border(t: number): void {
-    const ctx = this.ctx
-    const dot = this.dot
-    const { w: W, h: H } = this.view
-    const step = dot * 6
-    const off = Math.floor(t * 20) % 2 ? dot * 3 : 0
-    ctx.fillStyle = 'rgba(176,108,255,0.55)'
-    for (let x = off; x < W; x += step) {
-      ctx.fillRect(x, 0, dot * 3, dot)
-      ctx.fillRect(x, H - dot, dot * 3, dot)
-    }
-    for (let y = off; y < H; y += step) {
-      ctx.fillRect(0, y, dot, dot * 3)
-      ctx.fillRect(W - dot, y, dot, dot * 3)
-    }
   }
 
   private drawUi(f: FramePacket, t: number): void {

@@ -2,7 +2,7 @@ import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, Menu, screen, s
 import { mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { CHALLENGES } from '@shared/courses'
-import { INSTAGRAM_URL, MORE_APPS_URL, type Rect, type Tool, type ToolboxAction, type ToolboxState } from '@shared/types'
+import { INSTAGRAM_URL, keyLabel as label, MORE_APPS_URL, type Rect, type Tool, type ToolboxAction, type ToolboxState } from '@shared/types'
 import { decodeCourse, encodeCourse, exportCourse, importCourse } from './courses'
 import { Engine } from './engine'
 import { initPhysics } from './engine/world'
@@ -35,7 +35,8 @@ let challenge: string | null = null
 const startHidden = process.argv.includes('--hidden') || (process.platform === 'darwin' && app.getLoginItemSettings().wasOpenedAtLogin)
 const TOGGLE_KEY = 'Control+Alt+W'
 const RECORD_KEY = 'Control+Alt+R'
-const HIDE_KEY = 'Control+Alt+H'
+/** 지금 잡혀 있는 모두 숨기기 단축키 (설정에서 바꿀 수 있음) */
+let hideKey = ''
 /** 숨기기 전에 공구함이 보였나 (다시 보일 때 되살림) */
 let toolboxWasVisible = false
 
@@ -66,6 +67,8 @@ function toolboxState(): ToolboxState {
     lastSaved: recorder.lastSaved
   }
 }
+
+const keyLabel = (key: string): string => label(key, process.platform)
 
 function say(text: string): void {
   toast = { text, at: Date.now() }
@@ -166,6 +169,15 @@ function handle(a: ToolboxAction): void {
       setTool(a.tool)
       break
     case 'settings': {
+      if (a.patch.hideKey !== undefined) {
+        const key = a.patch.hideKey
+        delete a.patch.hideKey
+        if (!/^[A-Za-z0-9+`]{1,40}$/.test(key) || [TOGGLE_KEY, RECORD_KEY, 'Escape', 'CommandOrControl+Z', 'Command+Z', 'Control+Z'].includes(key) || !bindHideKey(key)) say(`'${keyLabel(key)}' 은(는) 쓸 수 없어요. 다른 프로그램이나 웜홀 모니터가 이미 쓰는 단축키예요`)
+        else {
+          store.setSettings({ hideKey: key })
+          say(`모두 숨기기 단축키: ${keyLabel(key)}`)
+        }
+      }
       store.setSettings(a.patch)
       const dotChanged = a.patch.dot !== undefined
       overlays.each((_b, send) => send('overlay:settings', store.settings))
@@ -264,7 +276,23 @@ function handle(a: ToolboxAction): void {
   pushState()
 }
 
-/** 모두 숨기기 ⌃⌥H: 놓은 것·장난감·공구함을 그 상태 그대로 멈춰서 숨긴다. 한 번 더 누르면 그대로 다시 */
+/** 모두 숨기기 단축키를 바꾼다. 다른 프로그램이 이미 쓰는 키면 false (원래 키 유지) */
+function bindHideKey(key: string): boolean {
+  if (key === hideKey) return true
+  let ok = false
+  try {
+    ok = globalShortcut.register(key, toggleHideAll)
+  } catch {
+    ok = false
+  }
+  if (!ok) return false
+  if (hideKey) globalShortcut.unregister(hideKey)
+  hideKey = key
+  buildTrayMenu()
+  return true
+}
+
+/** 모두 숨기기 (기본 ⌃⌥H): 놓은 것·장난감·공구함을 그 상태 그대로 멈춰서 숨긴다. 한 번 더 누르면 그대로 다시 */
 function toggleHideAll(): void {
   if (!engine.hidden) {
     if (recorder.live) recorder.stopLive()
@@ -311,7 +339,7 @@ function buildTrayMenu(): void {
   const w = engine.world
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: engine.hidden ? '🙉 다시 보이기' : '🙈 모두 숨기기', accelerator: HIDE_KEY, click: toggleHideAll },
+      { label: engine.hidden ? '🙉 다시 보이기' : '🙈 모두 숨기기', accelerator: hideKey || undefined, click: toggleHideAll },
       { label: toolbox?.isVisible() ? '공구함 숨기기' : '공구함 열기', accelerator: TOGGLE_KEY, enabled: !engine.hidden, click: toggleToolbox },
       { label: '손 놓기 (ESC)', enabled: engine.tools.tool.t !== 'none', click: () => setTool({ t: 'none' }) },
       { label: recorder?.live ? '⏹ 녹화 멈추기' : '🎥 실화면 녹화', accelerator: RECORD_KEY, click: () => void toggleRecord() },
@@ -425,7 +453,7 @@ app.whenReady().then(async () => {
   buildTrayMenu()
   globalShortcut.register(TOGGLE_KEY, toggleToolbox)
   globalShortcut.register(RECORD_KEY, () => void toggleRecord())
-  globalShortcut.register(HIDE_KEY, toggleHideAll)
+  bindHideKey(store.settings.hideKey)
   if (!startHidden) showToolbox()
   setupUpdater()
 })

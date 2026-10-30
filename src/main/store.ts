@@ -70,6 +70,7 @@ function sanitize(s: Settings): Settings {
     preview: preview.includes(s.preview) ? s.preview : DEFAULT_SETTINGS.preview,
     pushWindows: !!s.pushWindows,
     autoClip: !!s.autoClip,
-    stopOnGoal: !!s.stopOnGoal
+    stopOnGoal: !!s.stopOnGoal,
+    hideKey: typeof s.hideKey === 'string' && /^[A-Za-z0-9+`]{1,40}$/.test(s.hideKey) ? s.hideKey : DEFAULT_SETTINGS.hideKey
   }
 }

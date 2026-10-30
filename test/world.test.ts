@@ -2,6 +2,7 @@
 import { CHALLENGES } from '../src/shared/courses'
 import { decodeCourse, encodeCourse, exportCourse, importCourse } from '../src/main/courses'
 import { initPhysics, World } from '../src/main/engine/world'
+import { acceleratorOf, keyLabel } from '../src/shared/types'
 
 async function main(): Promise<void> {
   await initPhysics()
@@ -144,6 +145,15 @@ async function main(): Promise<void> {
     }
     ok('도전 코스 8개 코드로 주고받기', allOk, `가장 긴 코드 ${longest}자`)
     ok('엉터리 코드는 거절', decodeCourse('WH1.abc') === null && decodeCourse('hello') === null)
+  }
+
+  // 6) 숨기기 단축키 바꾸기
+  {
+    const k = (code: string, m: Partial<Record<'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey', boolean>> = {}) => ({ key: '', code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...m })
+    const a = acceleratorOf(k('KeyJ', { ctrlKey: true, shiftKey: true }), 'win32')
+    const b = acceleratorOf(k('KeyH', { metaKey: true, altKey: true }), 'darwin')
+    ok('단축키 받기', a === 'Control+Shift+J' && b === 'Alt+Command+H' && acceleratorOf(k('KeyJ'), 'win32') === null && acceleratorOf(k('F9'), 'win32') === 'F9' && acceleratorOf(k('ShiftLeft', { shiftKey: true }), 'win32') === null, `${a} · ${b}`)
+    ok('단축키 표시', keyLabel('Control+Alt+H', 'darwin') === '⌃⌥H' && keyLabel('Control+Alt+H', 'win32') === 'Ctrl+Alt+H')
   }
 
   for (const [name, pass, info] of results) console.log(`${pass ? '✓' : '✗'} ${name}${info ? ` — ${info}` : ''}`)
