@@ -210,3 +210,35 @@ button.small.rec {
   border-color: #ff4d4d;
   color: #ff4d4d;
 }
+.head-btns {
+  display: flex;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+.hide-all {
+  height: 22px;
+  padding: 0 6px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.hide-all:hover,
+.x:hover {
+  border-color: var(--accent);
+}
+.more {
+  margin-top: 12px;
+  padding: 8px;
+  border: 2px dashed var(--line);
+}
+.more-msg {
+  margin-bottom: 6px;
+  color: var(--dim);
+  line-height: 1.5;
+}
+button.small.primary {
+  border-color: var(--accent);
+  background: #3a1f66;
+}

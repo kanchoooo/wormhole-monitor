@@ -191,6 +191,9 @@ export type ToolboxAction =
   | { t: 'course-paste' }
   | { t: 'course-load'; id: string }
   | { t: 'record' }
+  | { t: 'hide-all' }
+  | { t: 'more-apps' }
+  | { t: 'instagram' }
   | { t: 'open-videos' }
   | { t: 'open-screen-permission' }
   | { t: 'hide' }
@@ -253,3 +256,8 @@ export interface StudioApi {
   done(d: StudioDone): void
   ready(): void
 }
+
+/** 개발자의 다른 앱 (비둘기 모니터·월급루팡 낚시터와 같은 주소) */
+export const MORE_APPS_URL = 'https://easyticket.co.kr/apps/'
+export const INSTAGRAM_URL = 'https://www.instagram.com/easyticket.co.kr/'
+export const INSTAGRAM_HANDLE = '@easyticket.co.kr'

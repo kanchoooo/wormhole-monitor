@@ -10,7 +10,7 @@ mkdirSync(dir, { recursive: true })
 const out = join(dir, 'test.mjs')
 try {
   await build({
-    entryPoints: ['test/world.test.ts'],
+    entryPoints: [process.argv[2] ?? 'test/world.test.ts'],
     bundle: true,
     platform: 'node',
     format: 'esm',

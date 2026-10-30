@@ -647,24 +647,14 @@ export class World {
   }
 
   /**
-   * 웜홀 통과: 짝 웜홀의 화살표 방향으로, 들어간 속력 그대로 나온다 ("빨리 들어가면 빨리 나온다").
-   * 들어간 자리가 진행 방향에서 옆으로 비껴 있던 만큼 나오는 자리도 옆으로 비낀다 (여러 개가 겹쳐 나오지 않게).
+   * 웜홀 통과: 짝 웜홀의 한가운데서, 들어간 속도·방향 그대로 나온다 ("빨리 들어가면 빨리 나온다").
+   * 나온 뒤에는 그 웜홀 밖으로 완전히 나갈 때까지 다시 빨려들지 않는다 (cool).
    */
-  warpPoint(from: Portal, to: Portal, ex: number, ey: number, vx: number, vy: number, out: number): { x: number; y: number; vx: number; vy: number; turn: number } {
-    const sp = Math.hypot(vx, vy)
-    const ux = Math.cos(to.a)
-    const uy = Math.sin(to.a)
-    // 옆으로 비낀 정도: 진행 방향에 수직인 성분 (-1 ~ 1 → 웜홀 반지름 비율)
-    let side = 0
-    if (sp > 1e-6) side = ((ex - from.x) * -vy + (ey - from.y) * vx) / sp / PORTAL_R
-    side = Math.max(-0.7, Math.min(0.7, side))
-    const nx = -uy
-    const ny = ux
-    const turn = to.a - (sp > 1e-6 ? Math.atan2(vy, vx) : to.a)
-    return { x: to.x + ux * out + nx * side * PORTAL_R, y: to.y + uy * out + ny * side * PORTAL_R, vx: ux * sp, vy: uy * sp, turn }
+  warpPoint(_from: Portal, to: Portal, _ex: number, _ey: number, vx: number, vy: number): { x: number; y: number; vx: number; vy: number } {
+    return { x: to.x, y: to.y, vx, vy }
   }
 
-  /** 선분 p→q 가 원(c, r)에 처음 들어가는 점. 안 들어가면 null */
+  /** 선분 p→q 가 원(c, r) 밖에서 안으로 처음 들어가는 점. 이미 안에 있었거나 안 들어가면 null */
   static entry(px0: number, py0: number, qx: number, qy: number, cx: number, cy: number, r: number): { x: number; y: number } | null {
     const dx = qx - px0
     const dy = qy - py0
@@ -672,7 +662,7 @@ export class World {
     const fy = py0 - cy
     const a = dx * dx + dy * dy
     const c = fx * fx + fy * fy - r * r
-    if (c <= 0) return { x: px0, y: py0 } // 이미 안
+    if (c <= 0) return null // 이미 안 — 밖에서 들어오는 움직임만 빨려든다
     if (a < 1e-9) return null
     const b = 2 * (fx * dx + fy * dy)
     const disc = b * b - 4 * a * c
@@ -699,10 +689,9 @@ export class World {
       const to = this.portals.get(p.pair)
       if (!to) continue
       const v = it.body.linvel()
-      const o = this.warpPoint(p, to, e.x, e.y, px(v.x), px(v.y), PORTAL_R * 0.8 + 1)
+      const o = this.warpPoint(p, to, e.x, e.y, px(v.x), px(v.y))
       it.body.setTranslation({ x: m(o.x), y: m(o.y) }, true)
       it.body.setLinvel({ x: m(o.vx), y: m(o.vy) }, true)
-      it.body.setRotation(it.body.rotation() + o.turn, true)
       it.cool.add(to.id)
       it.portals++
       it.prev = { x: o.x, y: o.y }
@@ -949,10 +938,17 @@ export class World {
         it.body.setLinvel(v, true)
       }
       it.speed = px(Math.min(sp, MAX_SPEED))
-      // 화살·다트는 날아가는 방향을 본다
-      if (ITEMS[it.kind].shape === 'stick' && it.speed > 150 && !it.held) {
-        it.body.setRotation(Math.atan2(v.y, v.x), false)
-        it.body.setAngvel(0, false)
+      // 화살·다트는 날아가는 방향을 본다 — 공중에 떠 있을 때만, 각도를 직접 바꾸지 않고 돌림 속도로 (바닥에 닿은 채로 각도를 바꾸면 땅을 파고들어 혼자 들썩인다)
+      if (ITEMS[it.kind].shape === 'stick' && !it.held) {
+        if (it.touching.size === 0 && it.speed > 250) {
+          let d = Math.atan2(v.y, v.x) - it.body.rotation()
+          d = Math.atan2(Math.sin(d), Math.cos(d))
+          it.body.setAngvel(d * 30, true)
+        } else if (it.touching.size > 0 && it.speed < 60) {
+          // 바닥에 누우면 빨리 멈추게
+          it.body.setAngularDamping(8)
+          it.body.setLinearDamping(3)
+        }
       }
       // 끈끈이·컨베이어
       let glue = false
@@ -970,8 +966,10 @@ export class World {
           }
         }
       }
-      it.body.setLinearDamping(glue ? 25 : 0.02)
+      const resting = ITEMS[it.kind].shape === 'stick' && it.touching.size > 0 && it.speed < 60
+      if (!resting) it.body.setLinearDamping(glue ? 25 : 0.02)
       if (glue) it.body.setAngularDamping(25)
+      else if (!resting) it.body.setAngularDamping(ITEMS[it.kind].shape === 'stick' ? 4 : 0.3)
     }
 
     this.w.step(this.events, this.hooks)
@@ -1037,6 +1035,8 @@ export class World {
     it.bounces++
     const p = this.itemPos(it)
     const def = ITEMS[it.kind]
+    // 똑바로 서서 떨어진 화살은 촉으로 서 있지 않게 살짝 넘어뜨린다
+    if (def.shape === 'stick' && Math.abs(Math.sin(it.body.rotation())) > 0.92) it.body.setAngvel((it.id % 2 ? 1 : -1) * 3, true)
     // 박히기: 빠른 화살·다트가 창·나무에
     if (def.sticks && it.speed > 700 && (other.t === 'window' || ((other.t === 'struct' || other.t === 'stroke') && (other.mat === 'wood' || other.mat === 'glue')))) {
       const c = this.w.getCollider(otherHandle)
@@ -1258,7 +1258,7 @@ export class World {
         const to = en && this.portals.get(p.pair)
         if (!en || !to) continue
         pts.push(en.x, en.y, NaN, NaN)
-        const o = this.warpPoint(p, to, en.x, en.y, vx, vy, PORTAL_R * 0.8 + 1)
+        const o = this.warpPoint(p, to, en.x, en.y, vx, vy)
         nx = o.x
         ny = o.y
         vx = o.vx

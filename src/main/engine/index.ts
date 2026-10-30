@@ -87,7 +87,23 @@ export class Engine {
   }
 
   /** 할 일이 있으면 루프를 돌린다 */
+  /** 모두 숨기기: 그대로 멈춰서 숨긴다 (다시 보이면 이어서) */
+  get hidden(): boolean {
+    return this.paused
+  }
+  private paused = false
+  setHidden(on: boolean): void {
+    this.paused = on
+    if (on) {
+      this.setTool({ t: 'none' })
+      if (this.timer) clearInterval(this.timer)
+      this.timer = null
+      this.overlays.setVisible(false)
+    } else this.wake()
+  }
+
   wake(): void {
+    if (this.paused) return
     const active = this.tools.tool.t !== 'none' || !this.world.empty
     this.overlays.setVisible(active)
     if (active && !this.timer) {
@@ -251,8 +267,8 @@ export class Engine {
       const e = World.entry(prev.x, prev.y, x, y, p.x, p.y, PORTAL_R * 0.7)
       const to = e && this.world.portals.get(p.pair)
       if (!e || !to) continue
-      const o = this.world.warpPoint(p, to, e.x, e.y, x - prev.x, y - prev.y, PORTAL_R + 6)
-      // 들어온 속도만큼 조금 더 밀어 준다
+      // 짝 웜홀 한가운데로 (움직이던 방향으로 한 걸음 더)
+      const o = this.world.warpPoint(p, to, e.x, e.y, x - prev.x, y - prev.y)
       const tx = o.x + o.vx
       const ty = o.y + o.vy
       if (this.input.warp(tx, ty)) {

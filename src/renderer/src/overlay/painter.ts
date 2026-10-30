@@ -220,19 +220,6 @@ export class Painter {
       const pending = p.pair === null
       const dir = pending || p.id < (p.pair ?? 0) ? 1 : -1
       blit(ctx, portalSprite(p.c, PORTAL_R, dot, Math.floor(t * 12) % 12, dir, pending), p.x - ox, p.y - oy)
-      // 나오는 방향 표시 (작은 화살)
-      if (!pending) {
-        const [a] = portalColors(p.c)
-        const r = PORTAL_R + 7
-        ctx.fillStyle = a
-        for (let i = 0; i < 3; i++) {
-          const along = r + i * dot
-          const w = (2 - i) * dot
-          const cx = p.x - ox + Math.cos(p.a) * along
-          const cy = p.y - oy + Math.sin(p.a) * along
-          for (let s = -w; s <= w; s += dot) ctx.fillRect(this.snap(cx - Math.sin(p.a) * s), this.snap(cy + Math.cos(p.a) * s), dot, dot)
-        }
-      }
     }
 
     for (const s of f.structs) {
@@ -442,7 +429,8 @@ export class Painter {
 
     if (ui.sel) {
       const sp = this.hoverPos(f, ui.sel)
-      if (sp) {
+      if (sp && ui.sel.t === 'portal') this.ring(sp.x - ox, sp.y - oy, sp.r + 4, '#ffd23f', t)
+      else if (sp) {
         this.ring(sp.x - ox, sp.y - oy, sp.r + 4, '#ffd23f', t)
         this.dottedLine(sp.x - ox, sp.y - oy, ui.sel.hx - ox, ui.sel.hy - oy, '#ffd23f', 0.9, 0)
         ctx.fillStyle = '#141414'

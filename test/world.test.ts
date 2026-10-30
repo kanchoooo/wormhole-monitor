@@ -46,6 +46,33 @@ async function main(): Promise<void> {
     ok('끝없이 빨라지지 않음', maxKmh <= 1000, `${maxKmh} km/h`)
   }
 
+  // 2-1) 웜홀: 짝 웜홀 한가운데서, 같은 속도로 나온다 / 이미 안에 있던 건 안 빨려든다
+  {
+    const w = new World()
+    w.setDisplays([screen])
+    w.addPortal(400, 300)
+    const b = w.addPortal(1000, 300)
+    w.spawnItem('steel', 250, 300, 1500, 0)
+    let out: { x: number; y: number } | null = null
+    for (let i = 0; i < 40 && !out; i++) {
+      w.step(0)
+      for (const e of w.frame().fx) if (e.t === 'warp' && Math.abs(e.x - 1000) < 1) out = { x: e.x, y: e.y }
+    }
+    ok('짝 웜홀 가운데서 나옴', !!out && Math.hypot(out.x - 1000, out.y - 300) < 1, JSON.stringify(out))
+    const w2 = new World()
+    w2.setDisplays([screen])
+    w2.spawnItem('marble', 700, 300)
+    w2.addPortal(700, 320)
+    w2.addPortal(200, 200)
+    let warped = 0
+    for (let i = 0; i < 60; i++) {
+      w2.step(0)
+      warped += w2.frame().fx.filter((e) => e.t === 'warp').length
+    }
+    ok('웜홀 안에서 생긴 건 안 빨려듦 (밖→안만)', warped === 0, `통과 ${warped}`)
+    void b
+  }
+
   // 3) 창 위에 볼링공: 조금만 내려감, 구슬은 버팀
   {
     const w = new World()
@@ -74,6 +101,25 @@ async function main(): Promise<void> {
     for (let i = 0; i < 60; i++) w.step(0)
     const f = w.frame()
     ok('화살이 창에 박힘', (f.items[5] & 1) === 1, `깃발 ${f.items[5]} 위치 ${f.items[2].toFixed(0)},${f.items[3].toFixed(0)} 창 x ${w.windowRects()[0].x.toFixed(0)}`)
+  }
+
+  // 4-1) 바닥에 떨어진 화살은 멈춘다 (혼자 들썩이지 않음) · 촉으로 서 있지 않음
+  {
+    let moving = 0
+    let standing = 0
+    for (const [vx, vy] of [[0, 0], [800, -400], [-300, 200], [2500, -600]]) {
+      const w = new World()
+      w.setDisplays([screen])
+      w.spawnItem('arrow', 700, 500, vx, vy)
+      for (let i = 0; i < 120 * 4; i++) w.step(0)
+      const a = w.frame().items
+      for (let i = 0; i < 120; i++) w.step(0)
+      const b = w.frame().items
+      if (Math.hypot(a[2] - b[2], a[3] - b[3]) > 0.5 || Math.abs(a[4] - b[4]) > 0.02) moving++
+      if (Math.abs(Math.sin(b[4])) > 0.9) standing++
+    }
+    ok('바닥에 떨어진 화살은 멈춤', moving === 0, `계속 움직인 화살 ${moving}/4`)
+    ok('화살이 촉으로 서 있지 않음', standing === 0, `서 있는 화살 ${standing}/4`)
   }
 
   // 5) 코스 코드 주고받기

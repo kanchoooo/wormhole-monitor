@@ -2,7 +2,7 @@ import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, Menu, screen, s
 import { mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { CHALLENGES } from '@shared/courses'
-import type { Rect, Tool, ToolboxAction, ToolboxState } from '@shared/types'
+import { INSTAGRAM_URL, MORE_APPS_URL, type Rect, type Tool, type ToolboxAction, type ToolboxState } from '@shared/types'
 import { decodeCourse, encodeCourse, exportCourse, importCourse } from './courses'
 import { Engine } from './engine'
 import { initPhysics } from './engine/world'
@@ -35,6 +35,9 @@ let challenge: string | null = null
 const startHidden = process.argv.includes('--hidden') || (process.platform === 'darwin' && app.getLoginItemSettings().wasOpenedAtLogin)
 const TOGGLE_KEY = 'Control+Alt+W'
 const RECORD_KEY = 'Control+Alt+R'
+const HIDE_KEY = 'Control+Alt+H'
+/** 숨기기 전에 공구함이 보였나 (다시 보일 때 되살림) */
+let toolboxWasVisible = false
 
 // ───────── 공구함 ─────────
 
@@ -132,6 +135,7 @@ function hideToolbox(): void {
 }
 
 function toggleToolbox(): void {
+  if (engine.hidden) return toggleHideAll()
   if (toolbox?.isVisible()) hideToolbox()
   else showToolbox()
 }
@@ -232,6 +236,15 @@ function handle(a: ToolboxAction): void {
     case 'record':
       void toggleRecord()
       break
+    case 'hide-all':
+      toggleHideAll()
+      break
+    case 'more-apps':
+      void shell.openExternal(MORE_APPS_URL)
+      break
+    case 'instagram':
+      void shell.openExternal(INSTAGRAM_URL)
+      break
     case 'open-videos':
       if (recorder.lastSaved) shell.showItemInFolder(recorder.lastSaved)
       else void shell.openPath(join(app.getPath('videos'), '웜홀 모니터'))
@@ -249,6 +262,21 @@ function handle(a: ToolboxAction): void {
   }
   engine.wake()
   pushState()
+}
+
+/** 모두 숨기기 ⌃⌥H: 놓은 것·장난감·공구함을 그 상태 그대로 멈춰서 숨긴다. 한 번 더 누르면 그대로 다시 */
+function toggleHideAll(): void {
+  if (!engine.hidden) {
+    if (recorder.live) recorder.stopLive()
+    toolboxWasVisible = !!toolbox?.isVisible()
+    setTool({ t: 'none' })
+    engine.setHidden(true)
+    toolbox?.hide()
+  } else {
+    engine.setHidden(false)
+    if (toolboxWasVisible) showToolbox()
+  }
+  buildTrayMenu()
 }
 
 async function toggleRecord(): Promise<void> {
@@ -283,7 +311,8 @@ function buildTrayMenu(): void {
   const w = engine.world
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: toolbox?.isVisible() ? '공구함 숨기기' : '공구함 열기', accelerator: TOGGLE_KEY, click: toggleToolbox },
+      { label: engine.hidden ? '🙉 다시 보이기' : '🙈 모두 숨기기', accelerator: HIDE_KEY, click: toggleHideAll },
+      { label: toolbox?.isVisible() ? '공구함 숨기기' : '공구함 열기', accelerator: TOGGLE_KEY, enabled: !engine.hidden, click: toggleToolbox },
       { label: '손 놓기 (ESC)', enabled: engine.tools.tool.t !== 'none', click: () => setTool({ t: 'none' }) },
       { label: recorder?.live ? '⏹ 녹화 멈추기' : '🎥 실화면 녹화', accelerator: RECORD_KEY, click: () => void toggleRecord() },
       { type: 'separator' },
@@ -291,6 +320,7 @@ function buildTrayMenu(): void {
       { label: '전부 치우기', click: () => handle({ t: 'clear-all' }) },
       { label: `창 원위치${w.movedWindows ? ` (${w.movedWindows})` : ''}`, enabled: w.movedWindows > 0, click: () => handle({ t: 'restore-windows' }) },
       { type: 'separator' },
+      { label: '🧩 개발자의 다른 앱 보기', click: () => void shell.openExternal(MORE_APPS_URL) },
       { label: `웜홀 모니터 v${app.getVersion()}`, enabled: false },
       {
         label: '종료',
@@ -378,6 +408,7 @@ app.whenReady().then(async () => {
       toolbox.setSize(300, Number(env.WH_TOOLBOX_H) || 720)
       toolbox.webContents.once('did-finish-load', () =>
         setTimeout(async () => {
+          if (env.WH_LOG === '1') console.log('[headless] toolbox 너비', await toolbox!.webContents.executeJavaScript('[innerWidth, document.documentElement.scrollWidth, [...document.querySelectorAll("*")].filter(e => e.getBoundingClientRect().right > innerWidth + 1).map(e => e.className || e.tagName).slice(0, 8)]'))
           const img = await toolbox!.webContents.capturePage()
           writeFileSync(env.WH_TOOLBOX_SHOT!, img.toPNG())
           console.log('[headless] toolbox shot')
@@ -394,6 +425,7 @@ app.whenReady().then(async () => {
   buildTrayMenu()
   globalShortcut.register(TOGGLE_KEY, toggleToolbox)
   globalShortcut.register(RECORD_KEY, () => void toggleRecord())
+  globalShortcut.register(HIDE_KEY, toggleHideAll)
   if (!startHidden) showToolbox()
   setupUpdater()
 })

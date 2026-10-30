@@ -1,6 +1,6 @@
 // 도구: 메인이 읽은 커서·버튼으로 세계를 고친다 (놓기·그리기·새총·손·지우개).
 // 왼쪽 = 도구 쓰기, 오른쪽 = 그 자리 것 지우기.
-import { ITEMS, PORTAL_R, STRUCTURES, type ItemKind } from '@shared/defs'
+import { ITEMS, STRUCTURES, type ItemKind } from '@shared/defs'
 import type { PreviewMode, Tool, ToolView } from '@shared/types'
 import { distToSeg, type World } from './world'
 
@@ -19,7 +19,6 @@ type Drag =
   | { t: 'move-struct'; id: number; dx: number; dy: number; moved: boolean }
   | { t: 'rotate-struct'; id: number }
   | { t: 'move-portal'; id: number; dx: number; dy: number }
-  | { t: 'rotate-portal'; id: number }
   | { t: 'place-struct'; id: number; x: number; y: number }
   | { t: 'place-portal'; id: number; x: number; y: number }
   | { t: 'draw'; pts: number[] }
@@ -95,13 +94,9 @@ export class Tools {
     const target = this.sel ?? this.hoverTarget()
     if (!target || dy === 0) return
     const step = dy > 0 ? SNAP : -SNAP
-    if (target.t === 'struct') {
-      const st = this.world.structure(target.id)
-      if (st) this.world.moveStructure(target.id, st.x, st.y, snap(st.a + step))
-    } else {
-      const p = this.world.portals.get(target.id)
-      if (p) p.a = snap(p.a + step)
-    }
+    if (target.t !== 'struct') return // 웜홀은 방향이 없다
+    const st = this.world.structure(target.id)
+    if (st) this.world.moveStructure(target.id, st.x, st.y, snap(st.a + step))
   }
 
   private hoverTarget(): { t: 'struct' | 'portal'; id: number } | null {
@@ -116,9 +111,9 @@ export class Tools {
   private handle(): { x: number; y: number } | null {
     if (!this.sel) return null
     if (this.sel.t === 'portal') {
+      // 웜홀은 돌릴 게 없다 → 손잡이 대신 가운데 (그림에서 고른 표시만)
       const p = this.world.portals.get(this.sel.id)
-      if (!p) return null
-      return { x: p.x + Math.cos(p.a) * (PORTAL_R + 16), y: p.y + Math.sin(p.a) * (PORTAL_R + 16) }
+      return p ? { x: p.x, y: p.y } : null
     }
     const st = this.world.structure(this.sel.id)
     if (!st) return null
@@ -161,7 +156,7 @@ export class Tools {
         const p = this.world.portalAt(x, y)
         if (p) this.drag = { t: 'move-portal', id: p.id, dx: p.x - x, dy: p.y - y }
         else {
-          const id = this.world.addPortal(x, y, 0)
+          const id = this.world.addPortal(x, y)
           this.push({ t: 'portal', id })
           this.drag = { t: 'place-portal', id, x, y }
         }
@@ -175,8 +170,8 @@ export class Tools {
       }
       case 'hand': {
         const h = this.handle()
-        if (h && this.sel && Math.hypot(h.x - x, h.y - y) < 12) {
-          this.drag = this.sel.t === 'struct' ? { t: 'rotate-struct', id: this.sel.id } : { t: 'rotate-portal', id: this.sel.id }
+        if (h && this.sel?.t === 'struct' && Math.hypot(h.x - x, h.y - y) < 12) {
+          this.drag = { t: 'rotate-struct', id: this.sel.id }
           break
         }
         const item = this.world.itemAt(x, y, 8)
@@ -234,12 +229,13 @@ export class Tools {
         }
         break
       }
-      case 'rotate-portal':
       case 'place-portal': {
+        // 놓으면서 끌면 그 자리로 옮긴다
         const p = this.world.portals.get(d.id)
-        if (!p) break
-        if (d.t === 'place-portal' && Math.hypot(x - d.x, y - d.y) < 12) break
-        p.a = snap(Math.atan2(y - p.y, x - p.x))
+        if (p) {
+          p.x = x
+          p.y = y
+        }
         break
       }
       case 'move-struct': {

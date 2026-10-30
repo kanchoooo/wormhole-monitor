@@ -1,7 +1,7 @@
 // 공구함: 도구 고르기·설정·정리. 상태는 메인이 갖고 있고 여기는 보여 주기만 한다.
 import { CHALLENGES } from '@shared/courses'
 import { DRAW_MATERIALS, ITEM_KINDS, ITEMS, MATERIALS, STRUCTURE_KINDS, STRUCTURES } from '@shared/defs'
-import type { Tool, ToolboxAction, ToolboxState } from '@shared/types'
+import { INSTAGRAM_HANDLE, type Tool, type ToolboxAction, type ToolboxState } from '@shared/types'
 import { iconFor, materialSwatch, portalSprite, type Sprite } from '@/art/dots'
 import galmuri from '@/assets/fonts/Galmuri11.woff2'
 import galmuriBold from '@/assets/fonts/Galmuri11-Bold.woff2'
@@ -58,10 +58,15 @@ function render(): void {
 
   const head = el('header')
   head.append(el('b', 'title', '🌀 웜홀 모니터'))
+  const btns = el('div', 'head-btns')
+  const hideAll = el('button', 'hide-all', '🙈 숨기기')
+  hideAll.title = '놓은 것·장난감·공구함을 그대로 멈춰서 모두 숨겨요. ⌃⌥H 로 다시 보이기'
+  hideAll.onclick = () => act({ t: 'hide-all' })
   const close = el('button', 'x', '–')
-  close.title = '공구함 숨기기 (메뉴 막대 아이콘으로 다시 열기)'
+  close.title = '공구함만 닫기 (놓은 것은 화면에 그대로 · ⌃⌥W 로 다시 열기)'
   close.onclick = () => act({ t: 'hide' })
-  head.append(close)
+  btns.append(hideAll, close)
+  head.append(btns)
   app.append(head)
 
   if (s.toast && Date.now() - s.toast.at < 5000) {
@@ -254,8 +259,19 @@ function render(): void {
   set.append(toggles, pv, dotSeg)
   app.append(set)
 
+  const more = el('div', 'more')
+  more.append(el('div', 'more-msg', `인스타 ${INSTAGRAM_HANDLE} 팔로우하면 새로 나온 재밌는 앱을 바로바로 해볼 수 있어요!`))
+  const mb = el('div', 'actions')
+  const insta = el('button', 'small primary', '인스타그램 보기')
+  insta.onclick = () => act({ t: 'instagram' })
+  const apps = el('button', 'small', '🧩 개발자의 다른 앱 보기')
+  apps.onclick = () => act({ t: 'more-apps' })
+  mb.append(insta, apps)
+  more.append(mb)
+  app.append(more)
+
   const foot = el('footer')
-  foot.append(el('span', '', '오른쪽 클릭 = 지우기 · 휠 = 돌리기'))
+  foot.append(el('span', '', '오른쪽 클릭 = 지우기 · 휠 = 돌리기 · ⌃⌥H 숨기기'))
   const q = el('button', 'link', `종료 v${s.version}`)
   q.onclick = () => act({ t: 'quit' })
   foot.append(q)
